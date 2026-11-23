@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Messages -->
+  <data name="Dialog_OK" xml:space="preserve"><value>OK</value></data>
+  <data name="Error_Unexpected" xml:space="preserve"><value>Something went wrong:
+
+{0}</value></data>
+  <data name="Error_FileNotFound" xml:space="preserve"><value>The file could not be found:
+{0}</value></data>
+  <data name="Error_OpenFailed" xml:space="preserve"><value>This file could not be opened.
+
+{0}</value></data>
+  <data name="Error_FontsFolder" xml:space="preserve"><value>The fonts folder could not be opened:
+{0}</value></data>
+  <data name="Title_Book" xml:space="preserve"><value>{0} – OmniRead</value></data>
+  <data name="Title_BookAuthor" xml:space="preserve"><value>{0} · {1} – OmniRead</value></data>
+
+  <!-- Reading books -->
+  <data name="Epub_NoContainer" xml:space="preserve"><value>This EPUB has no container file.</value></data>
+  <data name="Epub_NoPackage" xml:space="preserve"><value>This EPUB does not name a package document.</value></data>
+  <data name="Epub_PackageMissing" xml:space="preserve"><value>The EPUB package document is missing.</value></data>
+  <data name="Epub_NoText" xml:space="preserve"><value>No readable text was found. The book may be DRM-protected.</value></data>
+  <data name="Epub_Cover" xml:space="preserve"><value>Cover</value></data>
+  <data name="Fb2_NoBook" xml:space="preserve"><value>The archive does not contain an FB2 book.</value></data>
+  <data name="Fb2_Empty" xml:space="preserve"><value>The FB2 file is empty.</value></data>
+  <data name="Fb2_FrontMatter" xml:space="preserve"><value>Front matter</value></data>
+  <data name="Docx_NotWord" xml:space="preserve"><value>This is not a Word document.</value></data>
+  <data name="Book_Empty" xml:space="preserve"><value>This document is empty.</value></data>
+  <data name="Book_Part" xml:space="preserve"><value>{0} · part {1}</value></data>
+  <data name="Section_Numbered" xml:space="preserve"><value>Section {0}</value></data>
+  <data name="Pdf_Page" xml:space="preserve"><value>Page {0}</value></data>
+
+  <!-- Number formats -->
+  <data name="Format_Percent" xml:space="preserve"><value>{0:P0}</value></data>
+  <data name="Format_Pixels" xml:space="preserve"><value>{0:0} px</value></data>
+  <data name="Format_Ratio" xml:space="preserve"><value>{0:0.00}</value></data>
+  <data name="Format_Em" xml:space="preserve"><value>{0:0} em</value></data>
+  <data name="Format_Minutes" xml:space="preserve"><value>{0:0} minutes</value></data>
+  <data name="Status_Page" xml:space="preserve"><value>Page {0} of {1}  ·  {2}</value></data>
+  <data name="Status_Opening" xml:space="preserve"><value>Opening…</value></data>
+
+  <!-- Toolbar and navigation -->
+  <data name="Tip_Open" xml:space="preserve"><value>Open a book (Ctrl+O)</value></data>
+  <data name="Tip_Contents" xml:space="preserve"><value>Contents (Ctrl+T)</value></data>
+  <data name="Tip_EyeComfort" xml:space="preserve"><value>Eye comfort mode (Ctrl+E)</value></data>
+  <data name="Tip_Settings" xml:space="preserve"><value>Reading settings (Ctrl+,)</value></data>
+  <data name="Tip_FullScreen" xml:space="preserve"><value>Full screen (F11)</value></data>
+  <data name="Tip_PreviousPage" xml:space="preserve"><value>Previous page</value></data>
+  <data name="Tip_NextPage" xml:space="preserve"><value>Next page</value></data>
+  <data name="Tip_PreviousChapter" xml:space="preserve"><value>Previous chapter (Ctrl+Left)</value></data>
+  <data name="Tip_NextChapter" xml:space="preserve"><value>Next chapter (Ctrl+Right)</value></data>
+  <data name="Contents_Title" xml:space="preserve"><value>Contents</value></data>
+
+  <!-- Welcome screen -->
+  <data name="Welcome_Prompt" xml:space="preserve"><value>Open a book, or drop a file anywhere in this window.</value></data>
+  <data name="Welcome_Formats" xml:space="preserve"><value>EPUB · FB2 · PDF · Markdown · plain text · HTML · Word · RTF</value></data>
+  <data name="Welcome_Open" xml:space="preserve"><value>Open a book…</value></data>
+  <data name="Welcome_Recent" xml:space="preserve"><value>Continue reading</value></data>
+
+  <!-- Break reminder -->
+  <data name="Break_Title" xml:space="preserve"><value>Time to rest your eyes</value></data>
+  <data name="Break_Start" xml:space="preserve"><value>Look at something 20 feet (6 m) away for {0} seconds.</value></data>
+  <data name="Break_Remaining" xml:space="preserve"><value>Look at something 20 feet (6 m) away. {0} seconds to go.</value></data>
+  <data name="Break_Dismiss" xml:space="preserve"><value>Dismiss</value></data>
+
+  <!-- Reading settings -->
+  <data name="Settings_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Settings_Font" xml:space="preserve"><value>Font</value></data>
+  <data name="Settings_OpenFontsFolder" xml:space="preserve"><value>Open fonts folder</value></data>
+  <data name="Settings_ReloadFonts" xml:space="preserve"><value>Reload fonts</value></data>
+  <data name="Settings_FontsHint" xml:space="preserve"><value>Copy .ttf or .otf files into the fonts folder, then reload.</value></data>
+  <data name="Settings_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Settings_LineSpacing" xml:space="preserve"><value>Line spacing</value></data>
+  <data name="Settings_PageWidth" xml:space="preserve"><value>Page width</value></data>
+  <data name="Settings_Layout" xml:space="preserve"><value>Layout</value></data>
+  <data name="Settings_View" xml:space="preserve"><value>View</value></data>
+  <data name="Settings_View_Pages" xml:space="preserve"><value>Pages</value></data>
+  <data name="Settings_View_Scrolling" xml:space="preserve"><value>Scrolling</value></data>
+  <data name="Settings_Columns" xml:space="preserve"><value>Columns</value></data>
+  <data name="Settings_Columns_Auto" xml:space="preserve"><value>Automatic</value></data>
+  <data name="Settings_Columns_One" xml:space="preserve"><value>One page</value></data>
+  <data name="Settings_Columns_Two" xml:space="preserve"><value>Two pages</value></data>
+  <data name="Settings_BookFormat" xml:space="preserve"><value>Format documents like a book</value></data>
+  <data name="Settings_BookFormatHint" xml:space="preserve"><value>For text, Markdown, HTML, Word and RTF files: finds chapters, rejoins hard-wrapped lines, and sets curly quotes, dashes and scene breaks.</value></data>
+  <data name="Settings_Justify" xml:space="preserve"><value>Justify text</value></data>
+  <data name="Settings_EyeComfort" xml:space="preserve"><value>Eye comfort</value></data>
+  <data name="Settings_EyeComfortMode" xml:space="preserve"><value>Eye comfort mode</value></data>
+  <data name="Settings_Warmth" xml:space="preserve"><value>Blue light reduction</value></data>
+  <data name="Settings_Dim" xml:space="preserve"><value>Dimming</value></data>
+  <data name="Settings_BreakReminders" xml:space="preserve"><value>Remind me to rest my eyes</value></data>
+  <data name="Settings_BreakEvery" xml:space="preserve"><value>Every</value></data>
+  <data name="Settings_BreakHint" xml:space="preserve"><value>The 20-20-20 rule: every 20 minutes, look at something 20 feet (6 m) away for 20 seconds.</value></data>
+  <data name="Settings_Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Settings_Theme_System" xml:space="preserve"><value>Follow Windows</value></data>
+  <data name="Settings_Theme_Light" xml:space="preserve"><value>Light</value></data>
+  <data name="Settings_Theme_Dark" xml:space="preserve"><value>Dark</value></data>
+  <data name="Settings_ThemeHint" xml:space="preserve"><value>Used when eye comfort mode is off.</value></data>
+  <data name="Settings_Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Settings_Language_System" xml:space="preserve"><value>Same as Windows</value></data>
+  <data name="Settings_LanguageHint" xml:space="preserve"><value>Restart OmniRead to change the language.</value></data>
+
+  <!-- Font groups -->
+  <data name="Fonts_Bundled" xml:space="preserve"><value>Included with OmniRead</value></data>
+  <data name="Fonts_Folder" xml:space="preserve"><value>From your fonts folder</value></data>
+  <data name="Fonts_System" xml:space="preserve"><value>Installed on this PC</value></data>
+
+  <!-- Eye comfort profiles -->
+  <data name="Profile_WarmPaper_Name" xml:space="preserve"><value>Warm Paper</value></data>
+  <data name="Profile_WarmPaper_Description" xml:space="preserve"><value>Cream page with soft brown ink. Takes the glare off a white screen in daylight.</value></data>
+  <data name="Profile_Sepia_Name" xml:space="preserve"><value>Sepia</value></data>
+  <data name="Profile_Sepia_Description" xml:space="preserve"><value>Deeper tan page for long sessions under indoor lighting.</value></data>
+  <data name="Profile_SoftGreen_Name" xml:space="preserve"><value>Soft Green</value></data>
+  <data name="Profile_SoftGreen_Description" xml:space="preserve"><value>Pale green page, a low-glare tint many readers find restful.</value></data>
+  <data name="Profile_GreyMist_Name" xml:space="preserve"><value>Grey Mist</value></data>
+  <data name="Profile_GreyMist_Description" xml:space="preserve"><value>Lower contrast for light sensitivity and migraine-prone eyes.</value></data>
+  <data name="Profile_Dusk_Name" xml:space="preserve"><value>Dusk</value></data>
+  <data name="Profile_Dusk_Description" xml:space="preserve"><value>Dark grey page with off-white text. Easier than pure black-on-white in a dim room.</value></data>
+  <data name="Profile_NightAmber_Name" xml:space="preserve"><value>Night Amber</value></data>
+  <data name="Profile_NightAmber_Description" xml:space="preserve"><value>Amber text on near-black with blue light almost removed. For reading before sleep.</value></data>
+  <data name="Profile_Midnight_Name" xml:space="preserve"><value>Midnight</value></data>
+  <data name="Profile_Midnight_Description" xml:space="preserve"><value>Dim grey on true black for a fully dark room or an OLED display.</value></data>
+  <data name="Profile_HighContrast_Name" xml:space="preserve"><value>High Contrast</value></data>
+  <data name="Profile_HighContrast_Description" xml:space="preserve"><value>Large yellow-on-black type with open spacing, for low vision or tired eyes.</value></data>
+
+  <!-- Dialogs and restored options -->
+  <data name="Dialog_OpenTitle" xml:space="preserve"><value>Open a book</value></data>
+  <data name="Filter_All" xml:space="preserve"><value>All supported files</value></data>
+  <data name="Filter_AllFiles" xml:space="preserve"><value>All files</value></data>
+  <data name="Filter_Epub" xml:space="preserve"><value>EPUB books</value></data>
+  <data name="Filter_Pdf" xml:space="preserve"><value>PDF documents</value></data>
+  <data name="Filter_Rtf" xml:space="preserve"><value>Rich text</value></data>
+  <data name="Filter_Text" xml:space="preserve"><value>Plain text</value></data>
+  <data name="Filter_Web" xml:space="preserve"><value>Web pages</value></data>
+  <data name="Filter_Word" xml:space="preserve"><value>Word documents</value></data>
+  <data name="Settings_DropCaps" xml:space="preserve"><value>Drop caps at chapter openings</value></data>
+  <data name="Settings_Hyphenate" xml:space="preserve"><value>Hyphenate</value></data>
+
+  <!-- Library, bookmarks and read aloud -->
+  <data name="Tip_Library" xml:space="preserve"><value>Library (Ctrl+L)</value></data>
+  <data name="Tip_Notes" xml:space="preserve"><value>Bookmarks and highlights (Ctrl+B)</value></data>
+  <data name="Tip_ReadAloud" xml:space="preserve"><value>Read aloud (Ctrl+R)</value></data>
+  <data name="Notes_Title" xml:space="preserve"><value>Bookmarks and highlights</value></data>
+  <data name="Notes_AddBookmark" xml:space="preserve"><value>Add bookmark</value></data>
+  <data name="Notes_Highlight" xml:space="preserve"><value>Highlight selection</value></data>
+  <data name="Notes_Empty" xml:space="preserve"><value>Nothing marked yet. Ctrl+D bookmarks this page; select text and press Ctrl+H to highlight it.</value></data>
+  <data name="Notes_NoteTip" xml:space="preserve"><value>Note</value></data>
+  <data name="Notes_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Library_Scanning" xml:space="preserve"><value>Looking for books…</value></data>
+  <data name="Library_Sort_Recent" xml:space="preserve"><value>Last read</value></data>
+  <data name="Library_Sort_Title" xml:space="preserve"><value>Title</value></data>
+  <data name="Library_Sort_Author" xml:space="preserve"><value>Author</value></data>
+  <data name="Library_SortTip" xml:space="preserve"><value>Sort by</value></data>
+  <data name="Settings_ReadAloud" xml:space="preserve"><value>Read aloud</value></data>
+  <data name="Settings_Voice" xml:space="preserve"><value>Voice</value></data>
+  <data name="Settings_Voice_Default" xml:space="preserve"><value>Windows default</value></data>
+  <data name="Settings_Speed" xml:space="preserve"><value>Speed</value></data>
+  <data name="Format_Speed" xml:space="preserve"><value>{0:0.0}×</value></data>
+  <data name="Settings_ReadAloudHint" xml:space="preserve"><value>Starts from the top of the page, or from selected text.</value></data>
+
+  <!-- Search, dictionary, footnotes and statistics -->
+  <data name="Tip_Search" xml:space="preserve"><value>Search in book (Ctrl+F)</value></data>
+  <data name="Search_Title" xml:space="preserve"><value>Search</value></data>
+  <data name="Search_Hint" xml:space="preserve"><value>Type at least two letters.</value></data>
+  <data name="Search_None" xml:space="preserve"><value>Nothing found.</value></data>
+  <data name="Search_Count" xml:space="preserve"><value>{0} results</value></data>
+  <data name="Search_TooMany" xml:space="preserve"><value>Showing the first {0} results.</value></data>
+  <data name="Menu_LookUp" xml:space="preserve"><value>Look up in dictionary</value></data>
+  <data name="Menu_Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Menu_ReadFromHere" xml:space="preserve"><value>Read aloud from here</value></data>
+  <data name="Lookup_Working" xml:space="preserve"><value>Looking up…</value></data>
+  <data name="Note_Title" xml:space="preserve"><value>Note {0}</value></data>
+  <data name="Note_GoTo" xml:space="preserve"><value>Go to note</value></data>
+  <data name="Library_Menu_Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Library_Menu_ShowInFolder" xml:space="preserve"><value>Show in folder</value></data>
+  <data name="Library_Menu_CopyPath" xml:space="preserve"><value>Copy path</value></data>
+  <data name="Library_Menu_Forget" xml:space="preserve"><value>Forget reading progress</value></data>
+  <data name="Stats_ChapterLeft" xml:space="preserve"><value>{0} left in chapter</value></data>
+  <data name="Stats_BookLeft" xml:space="preserve"><value>About {0} left in the book</value></data>
+  <data name="Stats_Today" xml:space="preserve"><value>Read today: {0}</value></data>
+  <data name="Stats_Pace" xml:space="preserve"><value>Your pace: about {0} words a minute</value></data>
+  <data name="Format_UnderMinute" xml:space="preserve"><value>under a minute</value></data>
+  <data name="Format_ShortMinutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="Format_HoursMinutes" xml:space="preserve"><value>{0} h {1} min</value></data>
+  <data name="Format_Approximate" xml:space="preserve"><value>~{0}</value></data>
+
+  <!-- Offline dictionary and Piper -->
+  <data name="Lookup_NotFound" xml:space="preserve"><value>No definition was found. The built-in dictionary is English only.</value></data>
+  <data name="Lookup_Source" xml:space="preserve"><value>From {0}, stored on this computer.</value></data>
+  <data name="Settings_PiperButton" xml:space="preserve"><value>Piper voices…</value></data>
+  <data name="Settings_PiperHint" xml:space="preserve"><value>Piper is a neural speech engine that runs on this computer. It is optional and downloaded separately.</value></data>
+  <data name="Piper_Title" xml:space="preserve"><value>Piper voices</value></data>
+  <data name="Piper_EngineMissing" xml:space="preserve"><value>The Piper engine is not installed. Installing downloads Python and Piper (about 100 MB, 190 MB on disk) into OmniRead's data folder.</value></data>
+  <data name="Piper_EngineReady" xml:space="preserve"><value>Piper {0} is installed.</value></data>
+  <data name="Piper_InstallEngine" xml:space="preserve"><value>Install Piper</value></data>
+  <data name="Piper_Download" xml:space="preserve"><value>Download</value></data>
+  <data name="Piper_Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Piper_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Piper_VoiceDetail" xml:space="preserve"><value>{0} · {1} MB</value></data>
+  <data name="Piper_VoiceInstalled" xml:space="preserve"><value>{0} · installed</value></data>
+  <data name="Piper_Step_Python" xml:space="preserve"><value>Downloading Python…</value></data>
+  <data name="Piper_Step_Pip" xml:space="preserve"><value>Setting up the package installer…</value></data>
+  <data name="Piper_Step_Package" xml:space="preserve"><value>Installing Piper. This takes a few minutes…</value></data>
+  <data name="Piper_Step_Voice" xml:space="preserve"><value>Downloading {0}… {1}%</value></data>
+  <data name="Piper_Done" xml:space="preserve"><value>Done.</value></data>
+  <data name="Piper_Failed" xml:space="preserve"><value>Piper could not do that: {0}</value></data>
+  <data name="Piper_NeedsEngine" xml:space="preserve"><value>The Piper engine is not installed. Open Reading settings, Piper voices.</value></data>
+  <data name="Piper_VoiceMissing" xml:space="preserve"><value>This Piper voice is no longer installed. Pick another voice in Reading settings.</value></data>
+  <data name="Piper_UninstallEngine" xml:space="preserve"><value>Uninstall Piper</value></data>
+  <data name="Piper_UninstallQuestion" xml:space="preserve"><value>Piper and its copy of Python will be removed from this computer.&#10;&#10;Delete the downloaded voices as well?</value></data>
+  <data name="Piper_Uninstalled" xml:space="preserve"><value>Piper has been removed.</value></data>
+  <data name="Piper_Base_Attribution" xml:space="preserve"><value>trained from a CC BY voice (credit required)</value></data>
+  <data name="Piper_Base_Lessac" xml:space="preserve"><value>trained from lessac (research and non-commercial use only)</value></data>
+  <data name="Piper_Base_Ryan" xml:space="preserve"><value>trained from ryan (non-commercial use only)</value></data>
+  <data name="Piper_Base_Unknown" xml:space="preserve"><value>base voice not documented</value></data>
+
+  <data name="Library_Folders" xml:space="preserve"><value>Library folders</value></data>
+  <data name="Library_AddFolder" xml:space="preserve"><value>Add folders…</value></data>
+  <data name="Library_RemoveFolder" xml:space="preserve"><value>Remove “{0}” from the library</value></data>
+  <data name="Library_Shelf_Recent" xml:space="preserve"><value>Recently opened</value></data>
+  <data name="Library_Summary" xml:space="preserve"><value>{0} books on {1} shelves</value></data>
+  <data name="Library_EmptyFolder" xml:space="preserve"><value>No books were found in the library folders.</value></data>
+  <data name="Library_Recent" xml:space="preserve"><value>Add library folders to see all your books, one shelf per folder.</value></data>
+  <data name="Piper_Intro" xml:space="preserve"><value>Piper is a neural text-to-speech engine that runs on this computer. Every Piper voice is listed with the licence its model card gives. Many are limited to non-commercial or research use, or require credit, so check the licence before using a voice for more than your own reading.</value></data>
+  <data name="Piper_Step_Card" xml:space="preserve"><value>Fetching the voice's model card…</value></data>
+  <data name="Piper_Base_Indirect" xml:space="preserve"><value>trained from another voice (see its model card)</value></data>
+</root>
