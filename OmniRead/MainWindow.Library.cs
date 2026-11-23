@@ -14,6 +14,7 @@ namespace OmniRead;
 /// <summary>The shelves of books shown when nothing is open: one shelf per library folder.</summary>
 public partial class MainWindow {
     private List<LibraryItem> _library = [];
+    private ListCollectionView? _libraryView;
     private int _libraryVersion;
 
     private async Task LoadLibraryAsync() {
@@ -42,16 +43,67 @@ public partial class MainWindow {
         // Grouping keeps the order of the list, so shelves appear in the order the folders were added.
         ListCollectionView view = new(Library.Sort(_library, _settings.LibrarySort).ToList());
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LibraryItem.Shelf)));
+        view.Filter = MatchesLibraryFilter;
+        _libraryView = view;
+        // The format list offers only the formats that are on the shelves, keeping the current choice when it still exists.
+        string? format = SelectedLibraryFormat();
+        List<string> formats = [Localizer.Get("Library_Filter_AllFormats"),
+            .. _library.Select(static item => item.Format).Distinct().Order(StringComparer.Ordinal)];
         _suppressEvents = true;
+        LibraryFormatCombo.ItemsSource = formats;
+        LibraryFormatCombo.SelectedIndex = Math.Max(0, (format is null) ? 0 : formats.IndexOf(format));
         LibraryList.ItemsSource = view;
         LibraryList.SelectedItem = null;
         _suppressEvents = false;
+        view.Refresh();
+        UpdateLibraryStatus();
+    }
+
+    private void UpdateLibraryStatus() {
         int folders = _settings.LibraryFolders.Count(Directory.Exists);
+        int shown = _libraryView?.Count ?? _library.Count;
         LibraryStatus.Text = (_library.Count == 0)
             ? Localizer.Get((folders > 0) ? "Library_EmptyFolder" : "Welcome_Prompt")
+            : (shown < _library.Count)
+                ? (shown == 0) ? Localizer.Get("Library_NoMatches") : Localizer.Format("Library_Filtered", shown, _library.Count)
             : (folders > 0)
                 ? Localizer.Format("Library_Summary", _library.Count, _library.Select(static item => item.Shelf).Distinct().Count())
                 : Localizer.Get("Library_Recent");
+    }
+
+    /// <summary>The format chosen in the filter, or null for all formats (the first entry).</summary>
+    private string? SelectedLibraryFormat() {
+        return (LibraryFormatCombo.SelectedIndex > 0) ? LibraryFormatCombo.SelectedItem as string : null;
+    }
+
+    /// <summary>Whether a book passes the search box and the two filters.</summary>
+    private bool MatchesLibraryFilter(object candidate) {
+        if (candidate is not LibraryItem item) {
+            return false;
+        }
+        string query = LibrarySearchBox.Text.Trim();
+        if ((query.Length > 0)
+            && !item.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+            && !item.Author.Contains(query, StringComparison.CurrentCultureIgnoreCase)) {
+            return false;
+        }
+        if ((SelectedLibraryFormat() is string format) && (item.Format != format)) {
+            return false;
+        }
+        return (LibraryStateCombo.SelectedValue is not ReadState state) || (state == ReadState.Any) || (item.State == state);
+    }
+
+    private void OnLibraryFilterChanged(object sender, RoutedEventArgs e) {
+        // Raised while the window is still being built, before the other controls exist.
+        if (LibrarySearchHint is null) {
+            return;
+        }
+        LibrarySearchHint.Visibility = (LibrarySearchBox.Text.Length == 0) ? Visibility.Visible : Visibility.Collapsed;
+        if (_suppressEvents || (_libraryView is null)) {
+            return;
+        }
+        _libraryView.Refresh();
+        UpdateLibraryStatus();
     }
 
     /// <summary>Closes the open book and returns to the shelves.</summary>

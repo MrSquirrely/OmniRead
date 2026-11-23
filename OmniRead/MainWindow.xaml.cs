@@ -231,6 +231,10 @@ public partial class MainWindow : Window {
         if (recent is null) {
             return;
         }
+        if (_located && (_chapterIndex == (_book.Chapters.Count - 1)) && (Paged ? (_page >= (_pages - 1)) : (_fraction >= 0.98))) {
+            // The last page has been reached; the library's "finished" filter goes by this.
+            recent.Finished = true;
+        }
         recent.ChapterIndex = _chapterIndex;
         recent.Fraction = _fraction;
         recent.Progress = BookProgress.Value;
@@ -321,8 +325,21 @@ public partial class MainWindow : Window {
             case Key.L when control:
                 ShowLibraryView();
                 break;
+            case Key.F when control && (_book is null):
+                LibrarySearchBox.Focus();
+                LibrarySearchBox.SelectAll();
+                break;
             case Key.F when control:
                 OpenSearch();
+                break;
+            case Key.P when control && _reading:
+                TogglePause();
+                break;
+            case Key.Up when control && _reading:
+                SkipSentence(-1);
+                break;
+            case Key.Down when control && _reading:
+                SkipSentence(1);
                 break;
             case Key.K when control:
                 _ = LookUpSelectionAsync();

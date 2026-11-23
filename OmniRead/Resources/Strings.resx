@@ -236,4 +236,30 @@
   <data name="Piper_Intro" xml:space="preserve"><value>Piper is a neural text-to-speech engine that runs on this computer. Every Piper voice is listed with the licence its model card gives. Many are limited to non-commercial or research use, or require credit, so check the licence before using a voice for more than your own reading.</value></data>
   <data name="Piper_Step_Card" xml:space="preserve"><value>Fetching the voice's model card…</value></data>
   <data name="Piper_Base_Indirect" xml:space="preserve"><value>trained from another voice (see its model card)</value></data>
+  <data name="Notes_Export" xml:space="preserve"><value>Export…</value></data>
+  <data name="Notes_ExportTip" xml:space="preserve"><value>Save this book's bookmarks, highlights and notes as Markdown or plain text</value></data>
+  <data name="Notes_ExportDialog" xml:space="preserve"><value>Export bookmarks and highlights</value></data>
+  <data name="Notes_ExportFile" xml:space="preserve"><value>{0} - notes</value></data>
+  <data name="Notes_ExportFailed" xml:space="preserve"><value>The file could not be saved.
+
+{0}</value></data>
+  <data name="Notes_Export_Bookmark" xml:space="preserve"><value>Bookmark</value></data>
+  <data name="Notes_Export_Note" xml:space="preserve"><value>Note</value></data>
+  <data name="Library_SearchHint" xml:space="preserve"><value>Search title or author</value></data>
+  <data name="Library_Filter_AllFormats" xml:space="preserve"><value>All formats</value></data>
+  <data name="Library_Filter_All" xml:space="preserve"><value>All books</value></data>
+  <data name="Library_Filter_Unread" xml:space="preserve"><value>Unread</value></data>
+  <data name="Library_Filter_Reading" xml:space="preserve"><value>In progress</value></data>
+  <data name="Library_Filter_Finished" xml:space="preserve"><value>Finished</value></data>
+  <data name="Library_Filtered" xml:space="preserve"><value>{0} of {1} books</value></data>
+  <data name="Library_NoMatches" xml:space="preserve"><value>No books match.</value></data>
+  <data name="Read_Previous" xml:space="preserve"><value>Previous sentence (Ctrl+Up)</value></data>
+  <data name="Read_Pause" xml:space="preserve"><value>Pause (Ctrl+P)</value></data>
+  <data name="Read_Resume" xml:space="preserve"><value>Resume (Ctrl+P)</value></data>
+  <data name="Read_Next" xml:space="preserve"><value>Next sentence (Ctrl+Down)</value></data>
+  <data name="Read_Sleep" xml:space="preserve"><value>Sleep timer</value></data>
+  <data name="Sleep_Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Sleep_Minutes" xml:space="preserve"><value>{0} minutes</value></data>
+  <data name="Sleep_ChapterEnd" xml:space="preserve"><value>At the end of the chapter</value></data>
+  <data name="Sleep_Remaining" xml:space="preserve"><value>Stops in {0} min</value></data>
 </root>

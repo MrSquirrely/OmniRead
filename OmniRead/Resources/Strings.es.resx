@@ -230,4 +230,30 @@
   <data name="Piper_Intro" xml:space="preserve"><value>Piper es un motor de síntesis de voz neuronal que funciona en este equipo. Se muestran todas las voces de Piper con la licencia que indica su ficha. Muchas están limitadas a uso no comercial o de investigación, o requieren atribución, así que revisa la licencia antes de usar una voz para algo más que tu propia lectura.</value></data>
   <data name="Piper_Step_Card" xml:space="preserve"><value>Obteniendo la ficha de la voz…</value></data>
   <data name="Piper_Base_Indirect" xml:space="preserve"><value>entrenada a partir de otra voz (consulta su ficha)</value></data>
+  <data name="Notes_Export" xml:space="preserve"><value>Exportar…</value></data>
+  <data name="Notes_ExportTip" xml:space="preserve"><value>Guardar los marcadores, resaltados y notas de este libro como Markdown o texto sin formato</value></data>
+  <data name="Notes_ExportDialog" xml:space="preserve"><value>Exportar marcadores y resaltados</value></data>
+  <data name="Notes_ExportFile" xml:space="preserve"><value>{0} - notas</value></data>
+  <data name="Notes_ExportFailed" xml:space="preserve"><value>No se ha podido guardar el archivo.
+
+{0}</value></data>
+  <data name="Notes_Export_Bookmark" xml:space="preserve"><value>Marcador</value></data>
+  <data name="Notes_Export_Note" xml:space="preserve"><value>Nota</value></data>
+  <data name="Library_SearchHint" xml:space="preserve"><value>Buscar título o autor</value></data>
+  <data name="Library_Filter_AllFormats" xml:space="preserve"><value>Todos los formatos</value></data>
+  <data name="Library_Filter_All" xml:space="preserve"><value>Todos los libros</value></data>
+  <data name="Library_Filter_Unread" xml:space="preserve"><value>Sin leer</value></data>
+  <data name="Library_Filter_Reading" xml:space="preserve"><value>En curso</value></data>
+  <data name="Library_Filter_Finished" xml:space="preserve"><value>Terminados</value></data>
+  <data name="Library_Filtered" xml:space="preserve"><value>{0} de {1} libros</value></data>
+  <data name="Library_NoMatches" xml:space="preserve"><value>Ningún libro coincide.</value></data>
+  <data name="Read_Previous" xml:space="preserve"><value>Frase anterior (Ctrl+Arriba)</value></data>
+  <data name="Read_Pause" xml:space="preserve"><value>Pausar (Ctrl+P)</value></data>
+  <data name="Read_Resume" xml:space="preserve"><value>Reanudar (Ctrl+P)</value></data>
+  <data name="Read_Next" xml:space="preserve"><value>Frase siguiente (Ctrl+Abajo)</value></data>
+  <data name="Read_Sleep" xml:space="preserve"><value>Temporizador de apagado</value></data>
+  <data name="Sleep_Off" xml:space="preserve"><value>Desactivado</value></data>
+  <data name="Sleep_Minutes" xml:space="preserve"><value>{0} minutos</value></data>
+  <data name="Sleep_ChapterEnd" xml:space="preserve"><value>Al final del capítulo</value></data>
+  <data name="Sleep_Remaining" xml:space="preserve"><value>Se detiene en {0} min</value></data>
 </root>

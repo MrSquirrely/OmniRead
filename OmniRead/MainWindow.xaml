@@ -97,6 +97,16 @@
             <TextBlock x:Name="TitleText" Grid.Column="1" Margin="16,0" HorizontalAlignment="Center" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" Foreground="{DynamicResource MutedBrush}" />
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <!-- Shown while a book is being read aloud. -->
+                <StackPanel x:Name="ReadControls" Orientation="Horizontal" Visibility="Collapsed">
+                    <Button Style="{StaticResource IconButton}" Content="&#xE892;" ToolTip="{l:Loc Read_Previous}"
+                            Click="OnReadPreviousClick" />
+                    <Button x:Name="ReadPauseButton" Style="{StaticResource IconButton}" Content="&#xE769;"
+                            ToolTip="{l:Loc Read_Pause}" Click="OnReadPauseClick" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE893;" ToolTip="{l:Loc Read_Next}" Click="OnReadNextClick" />
+                    <ToggleButton x:Name="SleepButton" Style="{StaticResource IconButton}" Content="&#xE708;"
+                                  ToolTip="{l:Loc Read_Sleep}" Click="OnSleepClick" />
+                </StackPanel>
                 <ToggleButton x:Name="ReadToggle" Style="{StaticResource IconButton}" Content="&#xE767;"
                               ToolTip="{l:Loc Tip_ReadAloud}" Click="OnReadAloudClick" />
                 <ToggleButton Style="{StaticResource IconButton}" Content="&#xE7B3;" IsChecked="{Binding EyeComfort}"
@@ -141,6 +151,8 @@
                         <Button Content="{l:Loc Notes_AddBookmark}" ToolTip="Ctrl+D" Click="OnAddBookmarkClick" />
                         <Button Content="{l:Loc Notes_Highlight}" ToolTip="Ctrl+H" Margin="8,0,0,0" Click="OnHighlightClick" />
                     </StackPanel>
+                    <Button x:Name="NotesExportButton" DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="14,0,14,8"
+                            Content="{l:Loc Notes_Export}" ToolTip="{l:Loc Notes_ExportTip}" Click="OnExportNotesClick" />
                     <TextBlock x:Name="NotesEmpty" DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="16,0,16,8"
                                Text="{l:Loc Notes_Empty}" />
                     <ListBox x:Name="NotesList" Background="Transparent" BorderThickness="0" Margin="4,0,4,8"
@@ -211,6 +223,7 @@
                     <Grid x:Name="WelcomePanel" Grid.Row="1" Margin="40,28,40,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <DockPanel>
@@ -233,7 +246,23 @@
                                            TextWrapping="NoWrap" />
                             </StackPanel>
                         </DockPanel>
-                        <ListBox x:Name="LibraryList" Grid.Row="1" Margin="-8,18,-8,0" Background="Transparent" BorderThickness="0"
+                        <!-- Narrowing the shelves: by title or author, by format, and by how far the book has been read. -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,18,0,0">
+                            <Grid Width="280">
+                                <TextBox x:Name="LibrarySearchBox" TextChanged="OnLibraryFilterChanged" />
+                                <TextBlock x:Name="LibrarySearchHint" Text="{l:Loc Library_SearchHint}" Margin="12,0" VerticalAlignment="Center"
+                                           IsHitTestVisible="False" Foreground="{DynamicResource MutedBrush}" />
+                            </Grid>
+                            <ComboBox x:Name="LibraryFormatCombo" Width="150" Margin="8,0,0,0" SelectionChanged="OnLibraryFilterChanged" />
+                            <ComboBox x:Name="LibraryStateCombo" Width="150" Margin="8,0,0,0" SelectedValuePath="Tag" SelectedIndex="0"
+                                      SelectionChanged="OnLibraryFilterChanged">
+                                <ComboBoxItem Content="{l:Loc Library_Filter_All}" Tag="{x:Static s:ReadState.Any}" />
+                                <ComboBoxItem Content="{l:Loc Library_Filter_Unread}" Tag="{x:Static s:ReadState.Unread}" />
+                                <ComboBoxItem Content="{l:Loc Library_Filter_Reading}" Tag="{x:Static s:ReadState.Reading}" />
+                                <ComboBoxItem Content="{l:Loc Library_Filter_Finished}" Tag="{x:Static s:ReadState.Finished}" />
+                            </ComboBox>
+                        </StackPanel>
+                        <ListBox x:Name="LibraryList" Grid.Row="2" Margin="-8,10,-8,0" Background="Transparent" BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  PreviewMouseLeftButtonUp="OnLibraryMouseUp" KeyDown="OnLibraryKeyDown">
                             <!-- One shelf per library folder, labelled with the folder's name. -->

@@ -50,6 +50,9 @@ public sealed class RecentBook {
 
     public DateTime LastOpened { get; set; }
 
+    /// <summary>Set once the last page of the book has been reached.</summary>
+    public bool Finished { get; set; }
+
     [JsonIgnore]
     public string ProgressText => Localizer.Format("Format_Percent", Progress);
 }

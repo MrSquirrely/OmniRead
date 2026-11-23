@@ -59,7 +59,9 @@ With no book open, OmniRead shows shelves of covers. **Library folders** adds on
 several at once) and removes them again; each folder becomes a shelf labelled with the folder's name, holding every
 supported book in it and its subfolders. Two folders with the same name are told apart by their parent folder, and a
 folder inside another listed folder gets its own shelf. With no folders it shows recently opened books. Sort by last
-read, title or author. Click a book to open it; right-click for a menu (open, show in folder, copy path, forget
+read, title or author. The row under the heading narrows the shelves: type part of a title or author (Ctrl+F puts
+the cursor there), pick a format, or show only unread, in-progress or finished books. A book counts as finished
+once its last page has been reached. Click a book to open it; right-click for a menu (open, show in folder, copy path, forget
 reading progress). Titles, authors and covers are read from EPUB and FB2 files, PDFs show their first page, and other
 formats show a title card. What is found is cached in `%LocalAppData%\OmniRead` (`library.json` and `Covers`).
 
@@ -70,11 +72,19 @@ bookmarks panel (Ctrl+B), where each can carry a note, and are saved per book in
 stored as a paragraph plus a character offset, so they survive font and window changes, but not switching
 **Format documents like a book** on or off.
 
+**Export…** in the same panel saves the book's bookmarks, highlights and notes as Markdown or plain text, grouped
+by chapter in reading order. Highlights are written out in full, read back from the book.
+
 ## Read aloud
 
 Ctrl+R (or the speaker button) reads from the top of the page, or from selected text, using the Windows voices
 (`Windows.Media.SpeechSynthesis`). The sentence being spoken is tinted and pages turn to follow it. Voice and
 speed are under Reading settings. PDFs cannot be read aloud because their pages are images.
+
+While it reads, four more buttons appear beside the speaker: previous sentence (Ctrl+↑), pause or resume (Ctrl+P),
+next sentence (Ctrl+↓) and a sleep timer. The timer stops the reading after 15, 30, 45 or 60 minutes, letting the
+sentence being spoken finish, or at the end of the chapter. "Previous sentence" does not go back past the start of
+the chapter.
 
 ## Search, dictionary and footnotes
 
@@ -123,7 +133,8 @@ that runs on this computer. Reading settings → **Piper voices…** installs it
 | Ctrl+D, Ctrl+H | Bookmark this page, highlight the selection |
 | Ctrl+B | Bookmarks and highlights |
 | Ctrl+R | Read aloud on / off |
-| Ctrl+F | Search in book |
+| Ctrl+P, Ctrl+↑ Ctrl+↓ | While reading aloud: pause or resume, previous / next sentence |
+| Ctrl+F | Search in book (in the library: search the shelves) |
 | Ctrl+K | Look up the selected word |
 | Ctrl + / − / wheel | Text size |
 | F11 | Full screen |

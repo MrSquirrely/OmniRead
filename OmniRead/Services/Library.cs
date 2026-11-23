@@ -17,6 +17,14 @@ using Windows.Storage.Streams;
 
 namespace OmniRead.Services;
 
+/// <summary>How far a book has been read, for filtering the shelves.</summary>
+public enum ReadState {
+    Any,
+    Unread,
+    Reading,
+    Finished
+}
+
 /// <summary>One book on the library shelf.</summary>
 public sealed class LibraryItem {
     public required string Path { get; init; }
@@ -30,6 +38,11 @@ public sealed class LibraryItem {
     public DateTime? LastOpened { get; init; }
 
     public double Progress { get; init; }
+
+    /// <summary>True once the book has been read to its last page.</summary>
+    public bool Finished { get; init; }
+
+    public ReadState State => Finished ? ReadState.Finished : (LastOpened is null) ? ReadState.Unread : ReadState.Reading;
 
     /// <summary>Label of the shelf the book is on: the name of its library folder.</summary>
     public string Shelf { get; init; } = "";
@@ -126,6 +139,7 @@ public static class Library {
                 Cover = entry.HasCover ? LoadImage(coverFile) : null,
                 LastOpened = read?.LastOpened,
                 Progress = read?.Progress ?? 0,
+                Finished = read?.Finished ?? false,
                 Shelf = shelfName,
                 ShelfIndex = shelfIndex
             });

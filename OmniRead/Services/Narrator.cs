@@ -30,6 +30,20 @@ public sealed class Narrator : IDisposable {
             .. Piper.InstalledVoices.Select(static voice => new NarratorVoice(Piper.VoicePrefix + voice.Key, $"Piper · {voice.DisplayName}"))];
     }
 
+    /// <summary>While set, speech is held where it is; a sentence that becomes ready meanwhile waits too.</summary>
+    public bool Paused {
+        get;
+        set {
+            field = value;
+            if (value) {
+                _player.Pause();
+            }
+            else if (_player.Source is not null) {
+                _player.Play();
+            }
+        }
+    }
+
     /// <summary>Speaks the text. Returns true when it was spoken to the end, false when it was stopped.</summary>
     public async Task<bool> SpeakAsync(string text, string voiceId, double rate) {
         Stop();
@@ -46,7 +60,9 @@ public sealed class Narrator : IDisposable {
             await audio.WriteAsync(wave.AsBuffer());
             audio.Seek(0);
             _player.Source = MediaSource.CreateFromStream(audio, "audio/wav");
-            _player.Play();
+            if (!Paused) {
+                _player.Play();
+            }
             return await playing.Task;
         }
         _synthesizer.Voice = voice ?? SpeechSynthesizer.DefaultVoice;
@@ -56,7 +72,9 @@ public sealed class Narrator : IDisposable {
             return false;
         }
         _player.Source = MediaSource.CreateFromStream(stream, stream.ContentType);
-        _player.Play();
+        if (!Paused) {
+            _player.Play();
+        }
         return await playing.Task;
     }
 
