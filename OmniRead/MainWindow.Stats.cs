@@ -1,3 +1,5 @@
+using System.Windows;
+
 using OmniRead.Localization;
 using OmniRead.Models;
 using OmniRead.Services;
@@ -84,7 +86,18 @@ public partial class MainWindow {
     }
 
     private string TodayLine() {
-        return Localizer.Format("Stats_Today", Duration(_settings.Stats.TodaySeconds));
+        double goal = _settings.DailyGoalMinutes * 60;
+        if (goal <= 0) {
+            return Localizer.Format("Stats_Today", Duration(_settings.Stats.TodaySeconds));
+        }
+        // With a goal set, today's reading is shown against it, with the run of days the goal has been met.
+        return Localizer.Format("Stats_TodayGoal", Duration(_settings.Stats.TodaySeconds), Duration(goal))
+            + "\n" + Localizer.Format("Stats_Streak", _settings.Stats.Streak(goal));
+    }
+
+    private void OnHistoryClick(object sender, RoutedEventArgs e) {
+        new StatsWindow(_settings) { Owner = this }.ShowDialog();
+        ScheduleSave();
     }
 
     private static string Duration(double seconds) {

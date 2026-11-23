@@ -1,7 +1,7 @@
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media;
+
+using HandyControl.Themes;
 
 using Windows.UI.ViewManagement;
 
@@ -11,15 +11,11 @@ namespace OmniRead.Services;
 public sealed record Palette(Color Page, Color Text, Color Accent, bool IsDark, double FontScale, double LineBoost, double ImageOpacity);
 
 /// <summary>
-/// Computes the active palette from the theme or eye-comfort profile, publishes it as application brushes and
-/// colours the Windows 11 title bar to match.
+/// Computes the active palette from the theme or eye-comfort profile and publishes it: as the app's own brushes,
+/// and as the light or dark theme and accent colour of the HandyControls styles. Windows draw their title bars in
+/// their own background, so the title bar follows the palette without further help.
 /// </summary>
 public static class ThemeManager {
-    private const int DwmUseImmersiveDarkMode = 20;
-    private const int DwmBorderColor = 34;
-    private const int DwmCaptionColor = 35;
-    private const int DwmTextColor = 36;
-
     private static readonly UISettings SystemSettings = new();
 
     public static Palette Current { get; private set; } = new(Colors.White, Colors.Black, Colors.SteelBlue, false, 1, 1, 1);
@@ -31,15 +27,16 @@ public static class ThemeManager {
         SystemSettings.ColorValuesChanged += static (_, _) => SystemThemeChanged?.Invoke();
     }
 
-    public static void Apply(ReaderSettings settings, Window? window) {
+    public static void Apply(ReaderSettings settings) {
         Palette palette = Compute(settings);
         Current = palette;
 
-        Color chrome = Mix(palette.Page, palette.Text, palette.IsDark ? 0.07 : 0.05);
         ResourceDictionary resources = Application.Current.Resources;
         resources["PageBrush"] = Brush(palette.Page);
-        resources["ChromeBrush"] = Brush(chrome);
+        resources["ChromeBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.07 : 0.05));
         resources["PanelBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.03 : 0.02));
+        // A step further from the page than the rest of the window, so the title bar and its toolbar stand apart.
+        resources["TitleBarBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.13 : 0.10));
         resources["TextBrush"] = Brush(palette.Text);
         resources["MutedBrush"] = Brush(Mix(palette.Text, palette.Page, 0.42));
         resources["DividerBrush"] = Brush(Mix(palette.Page, palette.Text, 0.16));
@@ -47,13 +44,13 @@ public static class ThemeManager {
         resources["CodeBrush"] = Brush(Mix(palette.Page, palette.Text, 0.07));
         resources["AccentBrush"] = Brush(palette.Accent);
 
-        ThemeMode mode = palette.IsDark ? ThemeMode.Dark : ThemeMode.Light;
-        if (Application.Current.ThemeMode != mode) {
-            Application.Current.ThemeMode = mode;
+        // The control library's own theme: light or dark to suit the page, tinted with the palette's accent.
+        HandyControl.Themes.ThemeManager controls = HandyControl.Themes.ThemeManager.Current;
+        ApplicationTheme theme = palette.IsDark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+        if (controls.ApplicationTheme != theme) {
+            controls.ApplicationTheme = theme;
         }
-        if (window is not null) {
-            ApplyTitleBar(window, chrome, palette);
-        }
+        controls.AccentColor = Brush(palette.Accent);
     }
 
     private static Palette Compute(ReaderSettings settings) {
@@ -115,25 +112,4 @@ public static class ThemeManager {
         brush.Freeze();
         return brush;
     }
-
-    private static void ApplyTitleBar(Window window, Color chrome, Palette palette) {
-        nint handle = new WindowInteropHelper(window).Handle;
-        if (handle == 0) {
-            return;
-        }
-        int dark = palette.IsDark ? 1 : 0;
-        int caption = ColorRef(chrome);
-        int text = ColorRef(palette.Text);
-        _ = DwmSetWindowAttribute(handle, DwmUseImmersiveDarkMode, ref dark, sizeof(int));
-        _ = DwmSetWindowAttribute(handle, DwmCaptionColor, ref caption, sizeof(int));
-        _ = DwmSetWindowAttribute(handle, DwmBorderColor, ref caption, sizeof(int));
-        _ = DwmSetWindowAttribute(handle, DwmTextColor, ref text, sizeof(int));
-    }
-
-    private static int ColorRef(Color color) {
-        return color.R | (color.G << 8) | (color.B << 16);
-    }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(nint window, int attribute, ref int value, int size);
 }

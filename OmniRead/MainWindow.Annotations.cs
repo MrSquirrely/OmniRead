@@ -10,6 +10,8 @@ using OmniRead.Localization;
 using OmniRead.Models;
 using OmniRead.Services;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
 /// <summary>Bookmarks and highlights.</summary>

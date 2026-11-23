@@ -23,6 +23,9 @@ body.paged .edge { display: flex; }
 ::highlight(marked) { background-color: var(--highlight); }
 ::highlight(found) { background-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 ::highlight(spoken) { background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+/* Focus mode: everything but the paragraph being read is dimmed. */
+body.focus #content > * { opacity: 0.25; transition: opacity 0.15s; }
+body.focus #content > .lit { opacity: 1; }
 </style>
 <style id="typography"></style>
 </head>
@@ -51,6 +54,7 @@ body.paged .edge { display: flex; }
     let scrollFrame = 0;
     let layoutTimer = 0;
     let selectionTimer = 0;
+    let lit = -1;           // focus mode: index of the block that is not dimmed
 
     // ---------------------------------------------------------------- text offsets
 
@@ -321,7 +325,65 @@ body.paged .edge { display: flex; }
         return { b: 0, o: 0 };
     }
 
+    // ---------------------------------------------------------------- focus mode
+
+    function setLit(block) {
+        if (!shown || !shown.focus || block === lit) {
+            return;
+        }
+        if (blocks[lit]) {
+            blocks[lit].classList.remove('lit');
+        }
+        lit = block;
+        if (blocks[lit]) {
+            blocks[lit].classList.add('lit');
+        }
+    }
+
+    // Keeps the lit paragraph with what is on screen: in scrolling view the one crossing a line two fifths of the
+    // way down, in paged view the first on the page once the lit one has been turned away from.
+    function followView() {
+        if (!shown.focus) {
+            return;
+        }
+        if (shown.paged) {
+            const area = frame.getBoundingClientRect();
+            const rect = blocks[lit] ? blocks[lit].getBoundingClientRect() : null;
+            if (!rect || rect.right <= area.left + 1 || rect.left >= area.right - 1) {
+                setLit(top().b);
+            }
+            return;
+        }
+        const line = view.clientHeight * 0.4;
+        for (const element of blocks) {
+            if (element && element.getBoundingClientRect().bottom > line) {
+                setLit(+element.dataset.b);
+                return;
+            }
+        }
+    }
+
+    // Paged focus mode: moves the lit paragraph up or down by one, turning the page when it is on another.
+    function stepLit(direction) {
+        let next = lit + direction;
+        while (blocks[next] && !blocks[next].textContent.trim() && !blocks[next].querySelector('img')) {
+            next += direction;
+        }
+        if (!blocks[next]) {
+            leave(direction);
+            return;
+        }
+        setLit(next);
+        const rect = blocks[next].getClientRects()[0];
+        if (rect && pageOf(rect) !== page) {
+            setPage(pageOf(rect));
+        }
+        anchor = { b: next, o: 0 };
+        report();
+    }
+
     function report() {
+        followView();
         let fraction;
         let share;
         if (shown.paged) {
@@ -379,6 +441,7 @@ body.paged .edge { display: flex; }
             return false;
         }
         CSS.highlights.set(name, new Highlight(range));
+        setLit(block);
         // A passage that starts a page also has an empty rectangle at the end of the page before; skip it.
         const rect = Array.from(range.getClientRects()).find(item => item.width > 0) || rectAt(block, start);
         if (!rect) {
@@ -403,7 +466,8 @@ body.paged .edge { display: flex; }
         applyVariables(message.vars);
         typography.textContent = message.css;
         document.documentElement.lang = message.lang;
-        document.body.className = (message.paged ? 'paged' : 'scroll') + (message.fixed ? ' fixed' : '');
+        document.body.className = (message.paged ? 'paged' : 'scroll') + (message.fixed ? ' fixed' : '') + (message.focus ? ' focus' : '');
+        lit = -1;
         CSS.highlights.clear();
         getSelection().removeAllRanges();
         content.style.transform = 'none';
@@ -416,6 +480,9 @@ body.paged .edge { display: flex; }
         view.scrollTop = 0;
         setMarked(message.marked);
         relayout();
+        if (message.b >= 0) {
+            setLit(message.b);
+        }
         if (message.found) {
             point('found', message.found[0], message.found[1], message.found[2], true);
         }
@@ -526,6 +593,11 @@ body.paged .edge { display: flex; }
         if (key === 'Control' || key === 'Shift' || key === 'Alt' || event.altKey) {
             return;
         }
+        if (shown && shown.focus && shown.paged && !event.ctrlKey && (key === 'ArrowDown' || key === 'ArrowUp')) {
+            event.preventDefault();
+            stepLit((key === 'ArrowDown') ? 1 : -1);
+            return;
+        }
         // Copy and select-all stay with the browser; everything else the reader uses goes to the app.
         if (event.ctrlKey ? !['c', 'a', 'insert'].includes(key.toLowerCase()) : readerKeys.includes(key)) {
             event.preventDefault();
@@ -581,7 +653,13 @@ body.paged .edge { display: flex; }
 
     addEventListener('resize', () => relayout());
 
-    addEventListener('mousedown', () => CSS.highlights.delete('found'));
+    addEventListener('mousedown', event => {
+        CSS.highlights.delete('found');
+        const block = event.target.closest ? event.target.closest('#content > [data-b]') : null;
+        if (block) {
+            setLit(+block.dataset.b);
+        }
+    });
 
     content.addEventListener('click', event => {
         const link = event.target.closest('a[data-h]');

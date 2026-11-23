@@ -256,4 +256,80 @@
   <data name="Sleep_Minutes" xml:space="preserve"><value>{0} minutos</value></data>
   <data name="Sleep_ChapterEnd" xml:space="preserve"><value>Al final del capítulo</value></data>
   <data name="Sleep_Remaining" xml:space="preserve"><value>Se detiene en {0} min</value></data>
+  <data name="Settings_Backup" xml:space="preserve"><value>Copia de seguridad</value></data>
+  <data name="Backup_Create" xml:space="preserve"><value>Crear copia…</value></data>
+  <data name="Backup_Restore" xml:space="preserve"><value>Restaurar…</value></data>
+  <data name="Backup_Hint" xml:space="preserve"><value>Una copia de seguridad guarda en un solo archivo la configuración, las carpetas de la biblioteca, las posiciones de lectura, las estadísticas, los marcadores, los resaltados y tus propias fuentes. No guarda los libros.</value></data>
+  <data name="Backup_FileType" xml:space="preserve"><value>Copia de seguridad de OmniRead</value></data>
+  <data name="Backup_Done" xml:space="preserve"><value>La copia de seguridad se ha guardado en:
+
+{0}</value></data>
+  <data name="Backup_Failed" xml:space="preserve"><value>No ha funcionado.
+
+{0}</value></data>
+  <data name="Backup_NotBackup" xml:space="preserve"><value>Este archivo no es una copia de seguridad de OmniRead.</value></data>
+  <data name="Backup_RestoreQuestion" xml:space="preserve"><value>Al restaurar, la configuración, las posiciones de lectura, los marcadores y los resaltados actuales se sustituyen por los de la copia. Después OmniRead se reiniciará.
+
+¿Continuar?</value></data>
+  <data name="Backup_RestartYourself" xml:space="preserve"><value>La copia de seguridad se ha restaurado. Vuelve a abrir OmniRead para usarla.</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Cancelar</value></data>
+  <data name="Stats_TodayGoal" xml:space="preserve"><value>Leído hoy: {0} de {1}</value></data>
+  <data name="Stats_Streak" xml:space="preserve"><value>Objetivo cumplido {0} días seguidos</value></data>
+  <data name="Settings_Goal" xml:space="preserve"><value>Objetivo de lectura</value></data>
+  <data name="Settings_GoalDaily" xml:space="preserve"><value>Leer cada día</value></data>
+  <data name="Settings_History" xml:space="preserve"><value>Historial de lectura…</value></data>
+  <data name="Settings_GoalHint" xml:space="preserve"><value>Pon 0 para no tener objetivo. El tiempo cuenta mientras pasas páginas o avanzas.</value></data>
+  <data name="History_Title" xml:space="preserve"><value>Historial de lectura</value></data>
+  <data name="History_Today" xml:space="preserve"><value>Hoy</value></data>
+  <data name="History_Streak" xml:space="preserve"><value>Racha</value></data>
+  <data name="History_Month" xml:space="preserve"><value>Últimos 30 días</value></data>
+  <data name="History_AllTime" xml:space="preserve"><value>Total</value></data>
+  <data name="History_OfGoal" xml:space="preserve"><value>de {0}</value></data>
+  <data name="History_Days" xml:space="preserve"><value>{0} días</value></data>
+  <data name="Library_Menu_Collections" xml:space="preserve"><value>Colecciones</value></data>
+  <data name="Library_Menu_Details" xml:space="preserve"><value>Editar detalles…</value></data>
+  <data name="Collection_New" xml:space="preserve"><value>Nueva colección…</value></data>
+  <data name="Collection_NameTitle" xml:space="preserve"><value>Colección</value></data>
+  <data name="Collection_NameLabel" xml:space="preserve"><value>Nombre de la colección</value></data>
+  <data name="Collection_Exists" xml:space="preserve"><value>Ya hay una colección llamada «{0}».</value></data>
+  <data name="Collection_Rename" xml:space="preserve"><value>Cambiar nombre…</value></data>
+  <data name="Collection_Delete" xml:space="preserve"><value>Eliminar colección</value></data>
+  <data name="Collection_DeleteQuestion" xml:space="preserve"><value>¿Eliminar la colección «{0}»? Los libros no se tocan.</value></data>
+  <data name="Details_Title" xml:space="preserve"><value>Detalles del libro</value></data>
+  <data name="Details_NoCover" xml:space="preserve"><value>Sin portada</value></data>
+  <data name="Details_ChooseCover" xml:space="preserve"><value>Elegir portada…</value></data>
+  <data name="Details_OwnCover" xml:space="preserve"><value>Usar la del libro</value></data>
+  <data name="Details_BookTitle" xml:space="preserve"><value>Título</value></data>
+  <data name="Details_Author" xml:space="preserve"><value>Autor</value></data>
+  <data name="Details_Hint" xml:space="preserve"><value>OmniRead guarda estos detalles; el archivo del libro no se modifica.</value></data>
+  <data name="Details_Reset" xml:space="preserve"><value>Volver a los datos del archivo</value></data>
+  <data name="Details_Images" xml:space="preserve"><value>Imágenes</value></data>
+  <data name="Details_BadImage" xml:space="preserve"><value>No se ha podido leer esa imagen.</value></data>
+  <data name="Settings_FocusMode" xml:space="preserve"><value>Modo de concentración (Ctrl+M)</value></data>
+  <data name="Settings_FocusHint" xml:space="preserve"><value>Atenúa todo excepto el párrafo que se está leyendo. En la vista de páginas, las flechas arriba y abajo pasan al párrafo anterior o siguiente.</value></data>
+  <data name="Settings_Audiobook" xml:space="preserve"><value>Exportar como audiolibro…</value></data>
+  <data name="Audiobook_Title" xml:space="preserve"><value>Exportar como audiolibro</value></data>
+  <data name="Audiobook_NeedsBook" xml:space="preserve"><value>Abre primero un libro con texto. Las páginas de un PDF son imágenes y no se pueden leer en voz alta.</value></data>
+  <data name="Audiobook_Voice" xml:space="preserve"><value>Voz: {0}, velocidad {1:0.0}×. Cámbialas en Lectura en voz alta antes de empezar.</value></data>
+  <data name="Audiobook_What" xml:space="preserve"><value>Qué exportar</value></data>
+  <data name="Audiobook_ThisChapter" xml:space="preserve"><value>Este capítulo: {0}</value></data>
+  <data name="Audiobook_WholeBook" xml:space="preserve"><value>Todo el libro ({0} capítulos, un archivo cada uno)</value></data>
+  <data name="Audiobook_Format" xml:space="preserve"><value>Formato</value></data>
+  <data name="Audiobook_FormatM4a" xml:space="preserve"><value>M4A (AAC), archivos pequeños</value></data>
+  <data name="Audiobook_FormatWave" xml:space="preserve"><value>WAV, sin comprimir</value></data>
+  <data name="Audiobook_Folder" xml:space="preserve"><value>Guardar en la carpeta</value></data>
+  <data name="Audiobook_FolderHint" xml:space="preserve"><value>La carpeta se crea si no existe. Los archivos con el mismo nombre se sustituyen.</value></data>
+  <data name="Audiobook_Browse" xml:space="preserve"><value>Examinar…</value></data>
+  <data name="Audiobook_Start" xml:space="preserve"><value>Exportar</value></data>
+  <data name="Audiobook_Ready" xml:space="preserve"><value>Puedes seguir leyendo mientras se exporta. Al cerrar esta ventana se cancela.</value></data>
+  <data name="Audiobook_Working" xml:space="preserve"><value>Capítulo {0} de {1}: {2}</value></data>
+  <data name="Audiobook_Done" xml:space="preserve"><value>Hecho: {0} archivos en {1} (unos {2} min).</value></data>
+  <data name="Audiobook_Nothing" xml:space="preserve"><value>No había texto que leer.</value></data>
+  <data name="Audiobook_Cancelled" xml:space="preserve"><value>Cancelado. Los capítulos ya terminados se han conservado.</value></data>
+  <data name="Audiobook_Failed" xml:space="preserve"><value>La exportación se ha detenido: {0}</value></data>
+  <data name="Audiobook_NotWave" xml:space="preserve"><value>La voz no ha devuelto audio legible.</value></data>
+  <data name="Audiobook_FormatChanged" xml:space="preserve"><value>La voz ha cambiado de formato de audio a mitad de un capítulo.</value></data>
+  <data name="Audiobook_CannotEncode" xml:space="preserve"><value>Windows no ha podido codificar M4A ({0}). Prueba con WAV.</value></data>
+  <data name="Settings_Profile" xml:space="preserve"><value>Perfil</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Tema</value></data>
 </root>

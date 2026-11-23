@@ -262,4 +262,80 @@
   <data name="Sleep_Minutes" xml:space="preserve"><value>{0} minutes</value></data>
   <data name="Sleep_ChapterEnd" xml:space="preserve"><value>At the end of the chapter</value></data>
   <data name="Sleep_Remaining" xml:space="preserve"><value>Stops in {0} min</value></data>
+  <data name="Settings_Backup" xml:space="preserve"><value>Backup</value></data>
+  <data name="Backup_Create" xml:space="preserve"><value>Back up…</value></data>
+  <data name="Backup_Restore" xml:space="preserve"><value>Restore…</value></data>
+  <data name="Backup_Hint" xml:space="preserve"><value>A backup holds your settings, library folders, reading positions, statistics, bookmarks, highlights and your own fonts in one file. It does not hold the books themselves.</value></data>
+  <data name="Backup_FileType" xml:space="preserve"><value>OmniRead backup</value></data>
+  <data name="Backup_Done" xml:space="preserve"><value>The backup was saved to:
+
+{0}</value></data>
+  <data name="Backup_Failed" xml:space="preserve"><value>That did not work.
+
+{0}</value></data>
+  <data name="Backup_NotBackup" xml:space="preserve"><value>This file is not an OmniRead backup.</value></data>
+  <data name="Backup_RestoreQuestion" xml:space="preserve"><value>Restoring replaces your current settings, reading positions, bookmarks and highlights with those in the backup. OmniRead will then restart.
+
+Continue?</value></data>
+  <data name="Backup_RestartYourself" xml:space="preserve"><value>The backup has been restored. Start OmniRead again to use it.</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Stats_TodayGoal" xml:space="preserve"><value>Read today: {0} of {1}</value></data>
+  <data name="Stats_Streak" xml:space="preserve"><value>Goal met {0} days in a row</value></data>
+  <data name="Settings_Goal" xml:space="preserve"><value>Reading goal</value></data>
+  <data name="Settings_GoalDaily" xml:space="preserve"><value>Read each day</value></data>
+  <data name="Settings_History" xml:space="preserve"><value>Reading history…</value></data>
+  <data name="Settings_GoalHint" xml:space="preserve"><value>Set to 0 for no goal. Time counts while you turn pages or scroll forward.</value></data>
+  <data name="History_Title" xml:space="preserve"><value>Reading history</value></data>
+  <data name="History_Today" xml:space="preserve"><value>Today</value></data>
+  <data name="History_Streak" xml:space="preserve"><value>Streak</value></data>
+  <data name="History_Month" xml:space="preserve"><value>Last 30 days</value></data>
+  <data name="History_AllTime" xml:space="preserve"><value>All time</value></data>
+  <data name="History_OfGoal" xml:space="preserve"><value>of {0}</value></data>
+  <data name="History_Days" xml:space="preserve"><value>{0} days</value></data>
+  <data name="Library_Menu_Collections" xml:space="preserve"><value>Collections</value></data>
+  <data name="Library_Menu_Details" xml:space="preserve"><value>Edit details…</value></data>
+  <data name="Collection_New" xml:space="preserve"><value>New collection…</value></data>
+  <data name="Collection_NameTitle" xml:space="preserve"><value>Collection</value></data>
+  <data name="Collection_NameLabel" xml:space="preserve"><value>Name of the collection</value></data>
+  <data name="Collection_Exists" xml:space="preserve"><value>There is already a collection called “{0}”.</value></data>
+  <data name="Collection_Rename" xml:space="preserve"><value>Rename…</value></data>
+  <data name="Collection_Delete" xml:space="preserve"><value>Delete collection</value></data>
+  <data name="Collection_DeleteQuestion" xml:space="preserve"><value>Delete the collection “{0}”? The books themselves are not touched.</value></data>
+  <data name="Details_Title" xml:space="preserve"><value>Book details</value></data>
+  <data name="Details_NoCover" xml:space="preserve"><value>No cover</value></data>
+  <data name="Details_ChooseCover" xml:space="preserve"><value>Choose cover…</value></data>
+  <data name="Details_OwnCover" xml:space="preserve"><value>Use the book's own</value></data>
+  <data name="Details_BookTitle" xml:space="preserve"><value>Title</value></data>
+  <data name="Details_Author" xml:space="preserve"><value>Author</value></data>
+  <data name="Details_Hint" xml:space="preserve"><value>These details are kept by OmniRead; the book file is not changed.</value></data>
+  <data name="Details_Reset" xml:space="preserve"><value>Reset to the file's details</value></data>
+  <data name="Details_Images" xml:space="preserve"><value>Pictures</value></data>
+  <data name="Details_BadImage" xml:space="preserve"><value>That picture could not be read.</value></data>
+  <data name="Settings_FocusMode" xml:space="preserve"><value>Focus mode (Ctrl+M)</value></data>
+  <data name="Settings_FocusHint" xml:space="preserve"><value>Dims everything except the paragraph being read. In pages view, the up and down arrows move to the previous or next paragraph.</value></data>
+  <data name="Settings_Audiobook" xml:space="preserve"><value>Export as audiobook…</value></data>
+  <data name="Audiobook_Title" xml:space="preserve"><value>Export as audiobook</value></data>
+  <data name="Audiobook_NeedsBook" xml:space="preserve"><value>Open a book with text first. PDF pages are pictures and cannot be read aloud.</value></data>
+  <data name="Audiobook_Voice" xml:space="preserve"><value>Voice: {0}, speed {1:0.0}×. Change these under Read aloud before starting.</value></data>
+  <data name="Audiobook_What" xml:space="preserve"><value>What to export</value></data>
+  <data name="Audiobook_ThisChapter" xml:space="preserve"><value>This chapter: {0}</value></data>
+  <data name="Audiobook_WholeBook" xml:space="preserve"><value>The whole book ({0} chapters, one file each)</value></data>
+  <data name="Audiobook_Format" xml:space="preserve"><value>Format</value></data>
+  <data name="Audiobook_FormatM4a" xml:space="preserve"><value>M4A (AAC), small files</value></data>
+  <data name="Audiobook_FormatWave" xml:space="preserve"><value>WAV, uncompressed</value></data>
+  <data name="Audiobook_Folder" xml:space="preserve"><value>Save in folder</value></data>
+  <data name="Audiobook_FolderHint" xml:space="preserve"><value>The folder is created if it does not exist. Files of the same name are replaced.</value></data>
+  <data name="Audiobook_Browse" xml:space="preserve"><value>Browse…</value></data>
+  <data name="Audiobook_Start" xml:space="preserve"><value>Export</value></data>
+  <data name="Audiobook_Ready" xml:space="preserve"><value>You can keep reading while the export runs. Closing this window cancels it.</value></data>
+  <data name="Audiobook_Working" xml:space="preserve"><value>Chapter {0} of {1}: {2}</value></data>
+  <data name="Audiobook_Done" xml:space="preserve"><value>Done: {0} files in {1} (took about {2} min).</value></data>
+  <data name="Audiobook_Nothing" xml:space="preserve"><value>There was no text to read.</value></data>
+  <data name="Audiobook_Cancelled" xml:space="preserve"><value>Cancelled. Chapters already finished were kept.</value></data>
+  <data name="Audiobook_Failed" xml:space="preserve"><value>The export stopped: {0}</value></data>
+  <data name="Audiobook_NotWave" xml:space="preserve"><value>The voice did not return audio that could be read.</value></data>
+  <data name="Audiobook_FormatChanged" xml:space="preserve"><value>The voice changed its audio format part-way through a chapter.</value></data>
+  <data name="Audiobook_CannotEncode" xml:space="preserve"><value>Windows could not encode M4A ({0}). Try WAV.</value></data>
+  <data name="Settings_Profile" xml:space="preserve"><value>Profile</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Theme</value></data>
 </root>

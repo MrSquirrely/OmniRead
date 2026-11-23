@@ -7,13 +7,15 @@ using System.Windows.Data;
 using OmniRead.Localization;
 using OmniRead.Services;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
 /// <summary>One line of the voice list.</summary>
 public sealed record PiperVoiceRow(PiperVoice Voice, string Language, string Name, string Detail, string Action);
 
 /// <summary>Installs the Piper engine and downloads or removes its public-domain and CC0 voices.</summary>
-public partial class PiperWindow : Window {
+public partial class PiperWindow : HandyControl.Controls.Window {
     private readonly CancellationTokenSource _cancel = new();
     private bool _busy;
 

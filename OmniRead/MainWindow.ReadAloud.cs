@@ -8,6 +8,8 @@ using OmniRead.Localization;
 using OmniRead.Models;
 using OmniRead.Services;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
 /// <summary>Reading the book aloud, one sentence at a time, with the spoken sentence tinted on the page.</summary>
@@ -31,25 +33,23 @@ public partial class MainWindow {
     [GeneratedRegex(@"\S.*?(?:[.!?…]+[""”’»)\]]*(?=\s|$)|\n|$)", RegexOptions.Singleline)]
     private static partial Regex Sentence();
 
-    private void LoadVoices() {
-        List<NarratorVoice> voices = [new NarratorVoice("", Localizer.Get("Settings_Voice_Default")), .. Narrator.Voices()];
-        _suppressEvents = true;
-        VoiceCombo.ItemsSource = voices;
-        VoiceCombo.SelectedItem = voices.FirstOrDefault(voice => voice.Id == _settings.SpeechVoice) ?? voices[0];
-        _suppressEvents = false;
-    }
-
-    private void OnVoiceSelectionChanged(object sender, SelectionChangedEventArgs e) {
-        if (!_suppressEvents && (VoiceCombo.SelectedItem is NarratorVoice voice)) {
-            _settings.SpeechVoice = voice.Id;
-        }
-    }
-
     private void OnPiperVoicesClick(object sender, RoutedEventArgs e) {
         StopReading();
         new PiperWindow { Owner = this }.ShowDialog();
         // Voices may have been added or removed.
-        LoadVoices();
+        RefreshSettingsGrid();
+    }
+
+    /// <summary>Opens the window that reads a chapter or the whole book into audio files.</summary>
+    private void OnAudiobookClick(object sender, RoutedEventArgs e) {
+        if ((_book is null) || _book.FixedLayout) {
+            MessageBox.Show(this, Localizer.Get("Audiobook_NeedsBook"), "OmniRead", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        string voice = Narrator.Voices().FirstOrDefault(candidate => candidate.Id == _settings.SpeechVoice)?.Name
+            ?? Localizer.Get("Settings_Voice_Default");
+        // Not a dialog: the book can be read on while the export runs.
+        new AudiobookWindow(_book, _book.Title, _chapterIndex, _settings.SpeechVoice, voice, _settings.SpeechRate) { Owner = this }.Show();
     }
 
     private void OnReadAloudClick(object sender, RoutedEventArgs e) {
@@ -229,7 +229,13 @@ public partial class MainWindow {
     private void OnSleepClick(object sender, RoutedEventArgs e) {
         // The click toggled the button; it shows whether a timer is set, not whether it was pressed.
         SleepButton.IsChecked = (_sleepAt is not null) || _sleepAtChapterEnd;
-        ContextMenu menu = new() { PlacementTarget = SleepButton, Placement = PlacementMode.Bottom };
+        // The menu would otherwise take its font from the button, which is drawn in the icon font.
+        ContextMenu menu = new() {
+            PlacementTarget = SleepButton,
+            Placement = PlacementMode.Bottom,
+            FontFamily = FontFamily,
+            FontSize = FontSize
+        };
         if (_sleepAt is DateTime due) {
             int left = Math.Max(1, (int)Math.Ceiling((due - DateTime.Now).TotalMinutes));
             menu.Items.Add(new MenuItem { Header = Localizer.Format("Sleep_Remaining", left), IsEnabled = false });

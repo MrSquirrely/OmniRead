@@ -4,7 +4,14 @@ A WPF book reader for Windows 11 (.NET 10, Windows SDK 10.0.22621).
 
     dotnet run --project OmniRead
 
-The window is WPF; the page itself is drawn by Microsoft Edge WebView2, whose runtime is part of Windows 11.
+The window is WPF, with its control styles, window chrome and light and dark themes from
+[HandyControls](https://github.com/ghost1372/HandyControls); the page itself is drawn by Microsoft Edge WebView2,
+whose runtime is part of Windows 11.
+
+The toolbar sits in the title bar. The cog opens the reading settings: a property grid of everything that can be
+set, grouped under the same headings as before, with the things that are done rather than set (fonts folder,
+reading history, Piper voices, audiobook export, backup and restore) as buttons beneath it. Selecting a setting
+shows a line of help under the grid where there is one.
 
 ## How a page is drawn
 
@@ -65,6 +72,15 @@ once its last page has been reached. Click a book to open it; right-click for a 
 reading progress). Titles, authors and covers are read from EPUB and FB2 files, PDFs show their first page, and other
 formats show a title card. What is found is cached in `%LocalAppData%\OmniRead` (`library.json` and `Covers`).
 
+**Collections** are shelves you make yourself; a book can be in any number of them and stays in its folder.
+Right-click a book → **Collections** to tick the ones it belongs to or make a new one. Collections stand above the
+folder shelves, marked with a tag; right-click a collection's heading to rename or delete it.
+
+**Edit details…** in the same menu corrects a book's title and author and lets you choose a cover picture, for
+books whose files carry none or get them wrong. The corrections are kept by OmniRead (the book file is not
+changed) and can be undone with **Reset to the file's details**. Chosen covers are stored in
+`%LocalAppData%\OmniRead\CustomCovers`.
+
 ## Bookmarks and highlights
 
 Ctrl+D bookmarks the top of the page; select text and press Ctrl+H to highlight it. Both are listed in the
@@ -86,6 +102,19 @@ next sentence (Ctrl+↓) and a sleep timer. The timer stops the reading after 15
 sentence being spoken finish, or at the end of the chapter. "Previous sentence" does not go back past the start of
 the chapter.
 
+**Export as audiobook…** (Reading settings → Read aloud) reads the current chapter or the whole book into audio
+files with the chosen voice and speed, one file per chapter, numbered in reading order. Files are M4A (AAC, encoded
+by Windows) or uncompressed WAV. The export runs in the background, so you can keep reading; closing its window
+cancels it and keeps the chapters already finished. A long book takes a while, and with a Piper voice the same
+engine serves both the export and read aloud, one sentence at a time.
+
+## Focus mode
+
+Focus mode (Ctrl+M, or the tick box under Layout) dims everything except one paragraph. In scrolling view that is
+the paragraph crossing a line two fifths of the way down the window; in pages view it is the first on the page, and
+↑ and ↓ move it to the previous or next paragraph, turning the page when needed. Clicking a paragraph lights it, and
+read aloud lights the paragraph it is speaking.
+
 ## Search, dictionary and footnotes
 
 Ctrl+F searches the whole book and lists every match with its chapter; picking one goes to the page and tints
@@ -103,6 +132,27 @@ every chapter has been shown at the current size and type settings; until then t
 length and the total is marked with `~`. The status bar also shows the time left in the chapter, based on your
 own pace once two minutes of reading have been measured (250 words a minute before that). Hover over it for the
 time left in the book, today's reading time and your pace.
+
+## Reading goal and history
+
+Reading settings → **Reading goal** sets a number of minutes to read each day (0 for none). With a goal set, the
+status bar's tooltip shows today's reading against it and how many days in a row it has been met; the count keeps
+running from yesterday until today's reading reaches the goal. **Reading history…** opens a chart of the time read
+on each of the last thirty days with the goal drawn across it, beside today's time, the streak, and the totals for
+the thirty days and for all time. Up to 400 days of daily times are kept.
+
+## Backup and restore
+
+Reading settings → **Backup** saves what OmniRead remembers as one `.omnibackup` file (a zip): settings, library
+folders, collections, reading positions, statistics, bookmarks, highlights, notes, corrected book details with
+their chosen covers, and the fonts in your own fonts folder. It does
+not hold the books themselves, the cover cache (rebuilt on the next scan) or Piper and its voices.
+
+**Restore…** replaces the current state with a backup and restarts OmniRead; the two files it replaces are kept
+beside the new ones as `settings.json.bak` and `annotations.json.bak`. Books are recognised by their full path, so
+positions and highlights follow a book only if it sits at the same path as before. Paths under your user folder are
+moved to the new user folder when the backup comes from a different user name; books elsewhere must be on the same
+drive and folder.
 
 ## Piper voices
 
@@ -135,6 +185,7 @@ that runs on this computer. Reading settings → **Piper voices…** installs it
 | Ctrl+R | Read aloud on / off |
 | Ctrl+P, Ctrl+↑ Ctrl+↓ | While reading aloud: pause or resume, previous / next sentence |
 | Ctrl+F | Search in book (in the library: search the shelves) |
+| Ctrl+M | Focus mode on / off; ↑ ↓ move the lit paragraph in pages view |
 | Ctrl+K | Look up the selected word |
 | Ctrl + / − / wheel | Text size |
 | F11 | Full screen |
@@ -163,6 +214,6 @@ Bundled material keeps its own licence: the fonts in `OmniRead/Fonts` are under 
 beside each), the dictionary data is from WordNet 3.1 (`OmniRead/Data/WORDNET-LICENSE.txt`), and the hyphenation
 patterns in `OmniRead/Data/Hyphenation` are the unmodified files of the TeX hyph-utf8 project, each with its
 licence at the top (American English: Gerard Kuiken's permissive notice, including Knuth's `hyphen.tex` tables;
-Spanish: MIT). The libraries AngleSharp, AngleSharp.Css (MIT), Markdig (BSD 2-Clause), VersOne.Epub (Unlicense) and
-the Microsoft WebView2 SDK (BSD-style) are fetched from NuGet. Piper and its voices are not part of OmniRead and
+Spanish: MIT). The libraries AngleSharp, AngleSharp.Css (MIT), Markdig (BSD 2-Clause), VersOne.Epub (Unlicense),
+HandyControls (MIT) and the Microsoft WebView2 SDK (BSD-style) are fetched from NuGet. Piper and its voices are not part of OmniRead and
 are downloaded separately under their own terms.

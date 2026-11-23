@@ -21,11 +21,15 @@ public partial class MainWindow {
         int version = ++_libraryVersion;
         List<string> folders = [.. _settings.LibraryFolders];
         List<RecentBook> recent = [.. _settings.Recent];
+        // Copies, so the scan on another thread never sees a list while it is being edited here.
+        List<BookCollection> collections = [.. _settings.Collections.Select(static collection =>
+            new BookCollection { Name = collection.Name, Paths = [.. collection.Paths] })];
+        Dictionary<string, BookOverride> overrides = new(_settings.Overrides, StringComparer.OrdinalIgnoreCase);
         LibraryStatus.Text = Localizer.Get("Library_Scanning");
         List<LibraryItem> items;
         try {
             // Reading titles and covers from many files is slow the first time, so it stays off the UI thread.
-            items = await Task.Run(() => Library.ScanAsync(folders, recent));
+            items = await Task.Run(() => Library.ScanAsync(folders, recent, collections, overrides));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException) {
             // The shelves are a convenience; a failed scan must not stop books from being opened.
@@ -42,7 +46,7 @@ public partial class MainWindow {
     private void ShowLibrary() {
         // Grouping keeps the order of the list, so shelves appear in the order the folders were added.
         ListCollectionView view = new(Library.Sort(_library, _settings.LibrarySort).ToList());
-        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LibraryItem.Shelf)));
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LibraryItem.Group)));
         view.Filter = MatchesLibraryFilter;
         _libraryView = view;
         // The format list offers only the formats that are on the shelves, keeping the current choice when it still exists.
@@ -61,13 +65,16 @@ public partial class MainWindow {
 
     private void UpdateLibraryStatus() {
         int folders = _settings.LibraryFolders.Count(Directory.Exists);
-        int shown = _libraryView?.Count ?? _library.Count;
+        // A book in a collection stands on two shelves but is still one book.
+        int books = _library.Select(static item => item.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int shown = (_libraryView is null) ? books
+            : _libraryView.Cast<LibraryItem>().Select(static item => item.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count();
         LibraryStatus.Text = (_library.Count == 0)
             ? Localizer.Get((folders > 0) ? "Library_EmptyFolder" : "Welcome_Prompt")
-            : (shown < _library.Count)
-                ? (shown == 0) ? Localizer.Get("Library_NoMatches") : Localizer.Format("Library_Filtered", shown, _library.Count)
-            : (folders > 0)
-                ? Localizer.Format("Library_Summary", _library.Count, _library.Select(static item => item.Shelf).Distinct().Count())
+            : (shown < books)
+                ? (shown == 0) ? Localizer.Get("Library_NoMatches") : Localizer.Format("Library_Filtered", shown, books)
+            : ((folders > 0) || (_settings.Collections.Count > 0))
+                ? Localizer.Format("Library_Summary", books, _library.Select(static item => item.Group).Distinct().Count())
                 : Localizer.Get("Library_Recent");
     }
 
@@ -94,11 +101,6 @@ public partial class MainWindow {
     }
 
     private void OnLibraryFilterChanged(object sender, RoutedEventArgs e) {
-        // Raised while the window is still being built, before the other controls exist.
-        if (LibrarySearchHint is null) {
-            return;
-        }
-        LibrarySearchHint.Visibility = (LibrarySearchBox.Text.Length == 0) ? Visibility.Visible : Visibility.Collapsed;
         if (_suppressEvents || (_libraryView is null)) {
             return;
         }

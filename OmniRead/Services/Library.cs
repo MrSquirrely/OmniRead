@@ -25,6 +25,9 @@ public enum ReadState {
     Finished
 }
 
+/// <summary>A shelf heading: a library folder, or a collection the reader made.</summary>
+public sealed record ShelfGroup(string Name, int Index, bool IsCollection);
+
 /// <summary>One book on the library shelf.</summary>
 public sealed class LibraryItem {
     public required string Path { get; init; }
@@ -47,8 +50,14 @@ public sealed class LibraryItem {
     /// <summary>Label of the shelf the book is on: the name of its library folder.</summary>
     public string Shelf { get; init; } = "";
 
-    /// <summary>Position of the shelf, in the order the folders were added.</summary>
+    /// <summary>Position of the shelf, in the order the folders were added. Collections come first, with negative positions.</summary>
     public int ShelfIndex { get; init; }
+
+    /// <summary>True when this entry stands on a collection's shelf rather than a folder's.</summary>
+    public bool IsCollection { get; init; }
+
+    /// <summary>What the shelves are grouped by; a collection and a folder of the same name stay apart.</summary>
+    public ShelfGroup Group => field ??= new ShelfGroup(Shelf, ShelfIndex, IsCollection);
 
     public string Format => System.IO.Path.GetExtension(Path).TrimStart('.').ToUpperInvariant();
 
@@ -77,6 +86,25 @@ public static class Library {
 
     private static string CoverFolder => System.IO.Path.Combine(SettingsStore.DataFolder, "Covers");
 
+    /// <summary>Covers the reader chose by hand. Unlike the cache in Covers, these cannot be rebuilt from the books.</summary>
+    public static string CustomCoverFolder => System.IO.Path.Combine(SettingsStore.DataFolder, "CustomCovers");
+
+    /// <summary>Stores a picture as a custom cover and returns its file name, or null when it cannot be read.</summary>
+    public static string? SaveCustomCover(string imageFile) {
+        try {
+            string name = Guid.NewGuid().ToString("N") + ".jpg";
+            Directory.CreateDirectory(CustomCoverFolder);
+            return SaveThumbnail(File.ReadAllBytes(imageFile), System.IO.Path.Combine(CustomCoverFolder, name)) ? name : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
+            return null;
+        }
+    }
+
+    public static ImageSource? LoadCustomCover(string? name) {
+        return string.IsNullOrEmpty(name) ? null : LoadImage(System.IO.Path.Combine(CustomCoverFolder, System.IO.Path.GetFileName(name)));
+    }
+
     private static string CachePath => System.IO.Path.Combine(SettingsStore.DataFolder, "library.json");
 
     /// <summary>
@@ -84,8 +112,16 @@ public static class Library {
     /// the recently opened books when no folder is set. Safe to call from a background thread; the covers it
     /// returns are frozen.
     /// </summary>
-    public static async Task<List<LibraryItem>> ScanAsync(IReadOnlyList<string> folders, IReadOnlyList<RecentBook> recent) {
-        List<(string Path, string Shelf, int ShelfIndex)> found = [];
+    public static async Task<List<LibraryItem>> ScanAsync(
+        IReadOnlyList<string> folders,
+        IReadOnlyList<RecentBook> recent,
+        IReadOnlyList<BookCollection> collections,
+        IReadOnlyDictionary<string, BookOverride> overrides) {
+        List<(string Path, string Shelf, int ShelfIndex, bool Collection)> found = [];
+        // Collections stand before the folder shelves, in the order they were made.
+        for (int i = 0; i < collections.Count; i++) {
+            found.AddRange(collections[i].Paths.Where(File.Exists).Select(path => (path, collections[i].Name, i - collections.Count, true)));
+        }
         List<string> existing = [.. folders.Where(Directory.Exists)];
         if (existing.Count > 0) {
             IReadOnlyList<string> labels = ShelfLabels(existing);
@@ -99,7 +135,7 @@ public static class Library {
                             break;
                         }
                         if (seen.Add(path)) {
-                            found.Add((path, labels[index], index));
+                            found.Add((path, labels[index], index, false));
                         }
                     }
                 }
@@ -110,7 +146,7 @@ public static class Library {
         }
         else {
             string shelf = Localizer.Get("Library_Shelf_Recent");
-            found.AddRange(recent.Select(static book => book.Path).Where(File.Exists).Select(path => (path, shelf, 0)));
+            found.AddRange(recent.Select(static book => book.Path).Where(File.Exists).Select(path => (path, shelf, 0, false)));
         }
 
         Dictionary<string, CacheEntry> cache = LoadCache();
@@ -119,7 +155,8 @@ public static class Library {
             .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.OrdinalIgnoreCase);
         List<LibraryItem> items = [];
         bool cacheChanged = false;
-        foreach ((string path, string shelfName, int shelfIndex) in found) {
+        foreach ((string path, string shelfName, int shelfIndex, bool collection) in found) {
+            overrides.TryGetValue(path, out BookOverride? custom);
             history.TryGetValue(path, out RecentBook? read);
             FileInfo file = new(path);
             long stamp = file.LastWriteTimeUtc.Ticks ^ file.Length;
@@ -132,16 +169,18 @@ public static class Library {
             items.Add(new LibraryItem {
                 Path = path,
                 // Formats without metadata get the title the reader worked out when the book was last opened.
-                Title = (entry.Title.Length > 0) ? entry.Title
+                Title = !string.IsNullOrWhiteSpace(custom?.Title) ? custom.Title
+                    : (entry.Title.Length > 0) ? entry.Title
                     : !string.IsNullOrEmpty(read?.Title) ? read.Title
                     : System.IO.Path.GetFileNameWithoutExtension(path),
-                Author = entry.Author,
-                Cover = entry.HasCover ? LoadImage(coverFile) : null,
+                Author = !string.IsNullOrWhiteSpace(custom?.Author) ? custom.Author : entry.Author,
+                Cover = LoadCustomCover(custom?.Cover) ?? (entry.HasCover ? LoadImage(coverFile) : null),
                 LastOpened = read?.LastOpened,
                 Progress = read?.Progress ?? 0,
                 Finished = read?.Finished ?? false,
                 Shelf = shelfName,
-                ShelfIndex = shelfIndex
+                ShelfIndex = shelfIndex,
+                IsCollection = collection
             });
         }
         if (cacheChanged) {

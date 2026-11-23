@@ -17,6 +17,8 @@ using OmniRead.Models;
 using OmniRead.Rendering;
 using OmniRead.Services;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
 /// <summary>Text the reader has selected on the page, as block indexes and character offsets.</summary>
@@ -171,6 +173,7 @@ public partial class MainWindow {
             ["o"] = offset,
             ["marked"] = MarkedPassages(),
             ["found"] = found,
+            ["focus"] = _settings.FocusMode && !_book.FixedLayout,
             ["vars"] = ChapterHtml.Variables(palette)
         });
         WelcomePanel.Visibility = Visibility.Collapsed;

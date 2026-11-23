@@ -16,9 +16,11 @@ using OmniRead.Services;
 
 using Microsoft.Win32;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
-public partial class MainWindow : Window {
+public partial class MainWindow : HandyControl.Controls.Window {
     private const int MaxRecentBooks = 12;
     private const int BreakSeconds = 20;
 
@@ -40,7 +42,7 @@ public partial class MainWindow : Window {
 
     public MainWindow(string[] args) {
         _settings = SettingsStore.Load();
-        ThemeManager.Apply(_settings, null);
+        ThemeManager.Apply(_settings);
         InitializeComponent();
         DataContext = _settings;
         Width = Math.Max(MinWidth, _settings.WindowWidth);
@@ -49,10 +51,8 @@ public partial class MainWindow : Window {
             WindowState = WindowState.Maximized;
         }
 
+        SettingsEditors.Voices = Narrator.Voices;
         LoadFonts();
-        ProfileList.ItemsSource = EyeProfile.All;
-        LoadLanguages();
-        LoadVoices();
         // Deferred until the window is loaded: before that there is no dispatcher context for an await to return to.
         Loaded += (_, _) => RefreshRecent();
         Loaded += async (_, _) => await InitializeReaderAsync();
@@ -114,16 +114,19 @@ public partial class MainWindow : Window {
 
         _book = book;
         _imageToken++;
+        // A title or author corrected in the library is shown here too.
+        BookOverride? custom = _settings.Overrides.GetValueOrDefault(book.FilePath);
+        string shownTitle = string.IsNullOrWhiteSpace(custom?.Title) ? book.Title : custom.Title;
+        string? shownAuthor = string.IsNullOrWhiteSpace(custom?.Author) ? book.Author : custom.Author;
         LoadAnnotations();
         MeasureBook();
-        Title = string.IsNullOrEmpty(book.Author)
-            ? Localizer.Format("Title_Book", book.Title)
-            : Localizer.Format("Title_BookAuthor", book.Title, book.Author);
-        TitleText.Text = string.IsNullOrEmpty(book.Author) ? book.Title : $"{book.Title}  ·  {book.Author}";
+        Title = string.IsNullOrEmpty(shownAuthor)
+            ? Localizer.Format("Title_Book", shownTitle)
+            : Localizer.Format("Title_BookAuthor", shownTitle, shownAuthor);
+        TitleText.Text = string.IsNullOrEmpty(shownAuthor) ? shownTitle : $"{shownTitle}  ·  {shownAuthor}";
         _suppressEvents = true;
         TocList.ItemsSource = book.Toc;
         _suppressEvents = false;
-        BookFormatCheck.IsEnabled = book.CanBookFormat;
 
         int chapter = 0;
         double fraction = 0;
@@ -141,7 +144,7 @@ public partial class MainWindow : Window {
             recent = new RecentBook { Path = book.FilePath };
             _settings.Recent.Add(recent);
         }
-        recent.Title = book.Title;
+        recent.Title = shownTitle;
         recent.LastOpened = DateTime.Now;
         _settings.Recent = [.. _settings.Recent.OrderByDescending(static entry => entry.LastOpened).Take(MaxRecentBooks)];
 
@@ -332,6 +335,9 @@ public partial class MainWindow : Window {
             case Key.F when control:
                 OpenSearch();
                 break;
+            case Key.M when control:
+                _settings.FocusMode = !_settings.FocusMode;
+                break;
             case Key.P when control && _reading:
                 TogglePause();
                 break;
@@ -406,13 +412,6 @@ public partial class MainWindow : Window {
         return false;
     }
 
-    private void OnNestedListMouseWheel(object sender, MouseWheelEventArgs e) {
-        // The profile list shows every item, so wheel input belongs to the settings panel around it.
-        e.Handled = true;
-        MouseWheelEventArgs forwarded = new(e.MouseDevice, e.Timestamp, e.Delta) { RoutedEvent = MouseWheelEvent };
-        ((UIElement)((FrameworkElement)sender).Parent).RaiseEvent(forwarded);
-    }
-
     // ---------------------------------------------------------------- settings
 
     private void OnSettingChanged(object? sender, PropertyChangedEventArgs e) {
@@ -447,8 +446,15 @@ public partial class MainWindow : Window {
             case nameof(ReaderSettings.LibrarySort):
                 ShowLibrary();
                 break;
-            case nameof(ReaderSettings.FontName) or nameof(ReaderSettings.FontOrigin) or nameof(ReaderSettings.Language)
-                or nameof(ReaderSettings.SpeechVoice) or nameof(ReaderSettings.SpeechRate):
+            case nameof(ReaderSettings.FontName) or nameof(ReaderSettings.FontOrigin):
+                // Choosing a font sets both; the chapter is typeset again once, a moment later.
+                SetFont(FontLibrary.Find(_fonts, _settings.FontName, _settings.FontOrigin));
+                ScheduleRebuild();
+                break;
+            case nameof(ReaderSettings.Language) or nameof(ReaderSettings.SpeechVoice) or nameof(ReaderSettings.SpeechRate):
+                break;
+            case nameof(ReaderSettings.DailyGoalMinutes):
+                UpdateStatus();
                 break;
             default:
                 ScheduleRebuild();
@@ -458,7 +464,7 @@ public partial class MainWindow : Window {
     }
 
     private void ApplyTheme() {
-        ThemeManager.Apply(_settings, this);
+        ThemeManager.Apply(_settings);
         ApplyReaderTheme();
     }
 
@@ -469,40 +475,14 @@ public partial class MainWindow : Window {
     private void LoadFonts() {
         _fonts = FontLibrary.Load();
         SetFont(FontLibrary.Find(_fonts, _settings.FontName, _settings.FontOrigin));
-        ListCollectionView view = new(_fonts);
-        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(FontChoice.Group)));
-        _suppressEvents = true;
-        FontCombo.ItemsSource = view;
-        FontCombo.SelectedItem = _font;
-        _suppressEvents = false;
+        SettingsEditors.Fonts = _fonts;
+        RefreshSettingsGrid();
     }
 
-    private void OnFontSelectionChanged(object sender, SelectionChangedEventArgs e) {
-        if (_suppressEvents || (FontCombo.SelectedItem is not FontChoice choice)) {
-            return;
-        }
-        SetFont(choice);
-        _settings.FontName = choice.Name;
-        _settings.FontOrigin = choice.Origin;
-        ScheduleRebuild();
-    }
-
-    private void LoadLanguages() {
-        List<Language> languages = [.. Localizer.Languages.Select(static language =>
-            (language.Code.Length == 0) ? language with { Name = Localizer.Get("Settings_Language_System") } : language)];
-        _suppressEvents = true;
-        LanguageCombo.ItemsSource = languages;
-        LanguageCombo.SelectedItem = languages.FirstOrDefault(language => language.Code == _settings.Language) ?? languages[0];
-        _suppressEvents = false;
-    }
-
-    private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e) {
-        if (_suppressEvents || (LanguageCombo.SelectedItem is not Language language)) {
-            return;
-        }
-        _settings.Language = language.Code;
-        // Text already on screen keeps its language; everything is read again at the next start.
-        LanguageHint.Visibility = Visibility.Visible;
+    /// <summary>Builds the settings grid again, for when the lists behind its drop-downs (fonts, voices) have changed.</summary>
+    private void RefreshSettingsGrid() {
+        SettingsGrid.SelectedObject = null;
+        SettingsGrid.SelectedObject = _settings;
     }
 
     private void OnOpenFontsFolderClick(object sender, RoutedEventArgs e) {
@@ -594,7 +574,11 @@ public partial class MainWindow : Window {
         else {
             WindowStyle = WindowStyle.SingleBorderWindow;
             WindowState = _restoreState;
-            ApplyTheme();
+        }
+        // The title bar is part of the window's template. It is hidden here rather than through the window's own
+        // full-screen switch, which fails when the title bar's height reaches zero.
+        if (Template.FindName("PART_NonClientArea", this) is FrameworkElement titleBar) {
+            titleBar.Visibility = _fullScreen ? Visibility.Collapsed : Visibility.Visible;
         }
         Visibility chrome = _fullScreen ? Visibility.Collapsed : Visibility.Visible;
         Toolbar.Visibility = chrome;

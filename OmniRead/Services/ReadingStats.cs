@@ -7,7 +7,7 @@ namespace OmniRead.Services;
 public sealed class ReadingStats {
     private const double DefaultPace = 25;
     private const double SecondsBeforeTrusted = 120;
-    private const int DaysKept = 90;
+    private const int DaysKept = 400;
 
     public double CharactersRead { get; set; }
 
@@ -22,6 +22,30 @@ public sealed class ReadingStats {
 
     [JsonIgnore]
     public double TodaySeconds => DailySeconds.GetValueOrDefault(Key(DateTime.Now));
+
+    public double SecondsOn(DateTime day) {
+        return DailySeconds.GetValueOrDefault(Key(day));
+    }
+
+    /// <summary>
+    /// How many days in a row the goal has been met, counting back from today, or from yesterday while today's
+    /// reading is still short of it.
+    /// </summary>
+    public int Streak(double goalSeconds) {
+        if (goalSeconds <= 0) {
+            return 0;
+        }
+        DateTime day = DateTime.Today;
+        if (SecondsOn(day) < goalSeconds) {
+            day = day.AddDays(-1);
+        }
+        int days = 0;
+        while (SecondsOn(day) >= goalSeconds) {
+            days++;
+            day = day.AddDays(-1);
+        }
+        return days;
+    }
 
     /// <summary>Records text that was read and the time it took.</summary>
     public void Add(double characters, double seconds) {

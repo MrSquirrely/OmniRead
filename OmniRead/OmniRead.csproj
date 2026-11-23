@@ -13,7 +13,7 @@
     <ApplicationIcon>Assets\OmniRead.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>OmniRead.Program</StartupObject>
-    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <NoWarn>$(NoWarn)</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,6 +31,7 @@
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.10.5" />
     <PackageReference Include="AngleSharp.Css" Version="1.5.0" />
+    <PackageReference Include="HandyControls" Version="3.7.0" />
     <PackageReference Include="Markdig" Version="1.6.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
     <PackageReference Include="VersOne.Epub" Version="3.3.6" />

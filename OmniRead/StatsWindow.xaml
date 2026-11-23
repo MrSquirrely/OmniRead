@@ -1,0 +1,62 @@
+<hc:Window x:Class="OmniRead.StatsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:OmniRead.Localization"
+        xmlns:hc="https://handyorg.github.io/handycontrol"
+        NonClientAreaBackground="{DynamicResource TitleBarBrush}" NonClientAreaForeground="{DynamicResource TextBrush}"
+        Title="{l:Loc History_Title}" Icon="Assets/OmniRead.ico"
+        Width="720" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource PanelBrush}" Foreground="{DynamicResource TextBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14">
+    <Window.Resources>
+        <l:FormatConverter x:Key="Format" />
+    </Window.Resources>
+    <StackPanel Margin="20">
+        <!-- Today, the streak and the totals -->
+        <UniformGrid Columns="4">
+            <StackPanel>
+                <TextBlock Text="{l:Loc History_Today}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                <TextBlock x:Name="TodayText" FontSize="22" FontWeight="SemiBold" />
+                <TextBlock x:Name="TodayGoalText" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="{l:Loc History_Streak}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                <TextBlock x:Name="StreakText" FontSize="22" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="{l:Loc History_Month}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                <TextBlock x:Name="MonthText" FontSize="22" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="{l:Loc History_AllTime}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                <TextBlock x:Name="TotalText" FontSize="22" FontWeight="SemiBold" />
+            </StackPanel>
+        </UniformGrid>
+
+        <!-- One bar per day for the last thirty days; the line marks the goal. -->
+        <Border Margin="0,20,0,0" Padding="14,14,14,8" CornerRadius="8" Background="{DynamicResource PageBrush}"
+                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+            <StackPanel>
+                <Grid Height="180">
+                    <UniformGrid x:Name="Bars" Rows="1" />
+                    <Border x:Name="GoalLine" Height="1" VerticalAlignment="Bottom" Background="{DynamicResource AccentBrush}"
+                            Opacity="0.7" IsHitTestVisible="False" />
+                </Grid>
+                <UniformGrid x:Name="Labels" Rows="1" Margin="0,6,0,0" />
+            </StackPanel>
+        </Border>
+
+        <DockPanel Margin="0,18,0,0">
+            <TextBlock Text="{l:Loc Settings_GoalDaily}" />
+            <TextBlock HorizontalAlignment="Right" Foreground="{DynamicResource MutedBrush}"
+                       Text="{Binding DailyGoalMinutes, Converter={StaticResource Format}, ConverterParameter=Format_Minutes}" />
+        </DockPanel>
+        <Slider Minimum="0" Maximum="120" SmallChange="5" LargeChange="15" TickFrequency="5" IsSnapToTickEnabled="True"
+                Value="{Binding DailyGoalMinutes}" ValueChanged="OnGoalChanged" />
+        <TextBlock Text="{l:Loc Settings_GoalHint}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" />
+
+        <Button Content="{l:Loc Piper_Close}" IsCancel="True" IsDefault="True" HorizontalAlignment="Right" MinWidth="88"
+                Margin="0,16,0,0" />
+    </StackPanel>
+</hc:Window>

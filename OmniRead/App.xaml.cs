@@ -3,6 +3,8 @@ using System.Windows.Threading;
 
 using OmniRead.Localization;
 
+using MessageBox = HandyControl.Controls.MessageBox;
+
 namespace OmniRead;
 
 public partial class App : Application {

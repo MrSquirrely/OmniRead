@@ -62,7 +62,7 @@ public static class AnnotationStore {
     }
 
     public static void Save() {
-        if (_all is null) {
+        if ((_all is null) || SettingsStore.Frozen) {
             return;
         }
         try {
