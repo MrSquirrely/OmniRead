@@ -5,7 +5,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -13,7 +12,6 @@ using System.Windows.Threading;
 using OmniRead.Formats;
 using OmniRead.Localization;
 using OmniRead.Models;
-using OmniRead.Rendering;
 using OmniRead.Services;
 
 using Microsoft.Win32;
@@ -33,17 +31,12 @@ public partial class MainWindow : Window {
     private List<FontChoice> _fonts = [];
     private FontChoice? _font;
     private Book? _book;
-    private BuiltDocument? _built;
     private int _chapterIndex;
     private ViewMode _activeMode;
-    private double? _pendingFraction;
-    private int? _pendingBlock;
     private bool _suppressEvents;
-    private bool _switching;
     private bool _fullScreen;
     private WindowState _restoreState;
     private int _breakSecondsLeft;
-    private DateTime _lastScrollChange;
 
     public MainWindow(string[] args) {
         _settings = SettingsStore.Load();
@@ -62,6 +55,7 @@ public partial class MainWindow : Window {
         LoadVoices();
         // Deferred until the window is loaded: before that there is no dispatcher context for an await to return to.
         Loaded += (_, _) => RefreshRecent();
+        Loaded += async (_, _) => await InitializeReaderAsync();
 
         _settings.PropertyChanged += OnSettingChanged;
         ThemeManager.SystemThemeChanged += OnSystemThemeChanged;
@@ -76,15 +70,6 @@ public partial class MainWindow : Window {
         _breakTimer.Tick += (_, _) => ShowBreakReminder();
         _breakCountdown.Tick += (_, _) => OnBreakCountdown();
         RestartBreakTimer();
-
-        DependencyPropertyDescriptor.FromProperty(DocumentViewerBase.MasterPageNumberProperty, typeof(FlowDocumentPageViewer))
-            .AddValueChanged(PageViewer, (_, _) => OnPositionChanged());
-        DependencyPropertyDescriptor.FromProperty(DocumentViewerBase.PageCountProperty, typeof(FlowDocumentPageViewer))
-            .AddValueChanged(PageViewer, (_, _) => OnPositionChanged());
-        ScrollView.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, _) => {
-            _lastScrollChange = DateTime.UtcNow;
-            OnPositionChanged();
-        }));
 
         SourceInitialized += (_, _) => ApplyTheme();
         string? startupFile = args.FirstOrDefault(static arg => !arg.StartsWith("--", StringComparison.Ordinal) && File.Exists(arg));
@@ -105,11 +90,13 @@ public partial class MainWindow : Window {
             return;
         }
         double overall = ((_book is not null) && keepProgress)
-            ? (_chapterIndex + CurrentFraction()) / _book.Chapters.Count
+            ? (_chapterIndex + _fraction) / _book.Chapters.Count
             : -1;
         StopReading();
         SaveProgress();
 
+        // The web view is a window of its own and would cover the message, so it steps aside while a book loads.
+        Web.Visibility = Visibility.Collapsed;
         LoadingText.Visibility = Visibility.Visible;
         WelcomePanel.Visibility = Visibility.Collapsed;
         Book book;
@@ -119,12 +106,14 @@ public partial class MainWindow : Window {
         catch (Exception ex) when (ex is not OutOfMemoryException) {
             LoadingText.Visibility = Visibility.Collapsed;
             WelcomePanel.Visibility = (_book is null) ? Visibility.Visible : Visibility.Collapsed;
+            Web.Visibility = (_book is null) ? Visibility.Collapsed : Visibility.Visible;
             MessageBox.Show(this, Localizer.Format("Error_OpenFailed", ex.Message), "OmniRead", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         LoadingText.Visibility = Visibility.Collapsed;
 
         _book = book;
+        _imageToken++;
         LoadAnnotations();
         MeasureBook();
         Title = string.IsNullOrEmpty(book.Author)
@@ -179,119 +168,16 @@ public partial class MainWindow : Window {
 
     private Size Viewport => new(ReaderHost.ActualWidth, ReaderHost.ActualHeight);
 
-    private DocumentBuilder CreateBuilder() {
-        _font ??= FontLibrary.Find(_fonts, _settings.FontName, _settings.FontOrigin);
-        return new DocumentBuilder(_settings, _font.Family, ThemeManager.Current) { InternalLink = OnInternalLink };
-    }
-
-    private void ShowChapter(int index, double fraction, int? blockIndex = null, bool takeFocus = false) {
+    private void Rebuild() {
         if (_book is null) {
             return;
         }
-        if (_reading && !_narratorTurningChapter && (Math.Clamp(index, 0, _book.Chapters.Count - 1) != _chapterIndex)) {
-            // Leaving the chapter by hand ends the reading; the narrator's own chapter turns do not.
-            StopReading();
-        }
-        CheckLayout();
-        _switching = true;
-        _chapterIndex = Math.Clamp(index, 0, _book.Chapters.Count - 1);
-        PageViewer.Document = null;
-        ScrollView.Document = null;
-        _built = CreateBuilder().Build(_book, _book.Chapters[_chapterIndex], Viewport);
-        ApplyHighlights();
-        _activeMode = _settings.ViewMode;
-        _pendingFraction = (fraction > 0) ? Math.Min(fraction, 1) : null;
-        _pendingBlock = (blockIndex > 0) ? blockIndex : null;
-
-        PageViewer.Visibility = Paged ? Visibility.Visible : Visibility.Collapsed;
-        ScrollView.Visibility = Paged ? Visibility.Collapsed : Visibility.Visible;
-        PreviousEdge.Visibility = PageViewer.Visibility;
-        NextEdge.Visibility = PageViewer.Visibility;
-        if (Paged) {
-            Paginator(_built).PaginationCompleted += (_, _) => {
-                ApplyPendingPosition();
-                // The page count is only final now, and the book-wide page numbers depend on it.
-                UpdateStatus();
-            };
-            PageViewer.Document = _built.Document;
+        // Until the page has reported where it is, the place it was asked to show still stands.
+        if (_located) {
+            ShowChapter(_chapterIndex, _fraction, _topBlock, false, _topOffset);
         }
         else {
-            ScrollView.Document = _built.Document;
-        }
-        _switching = false;
-        if (takeFocus) {
-            (Paged ? (UIElement)PageViewer : ScrollView).Focus();
-        }
-        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, ApplyPendingPosition);
-
-        PreviousChapterButton.IsEnabled = _chapterIndex > 0;
-        NextChapterButton.IsEnabled = _chapterIndex < (_book.Chapters.Count - 1);
-        SelectTocEntry();
-        UpdateStatus();
-    }
-
-    private static DynamicDocumentPaginator Paginator(BuiltDocument built) {
-        return (DynamicDocumentPaginator)((IDocumentPaginatorSource)built.Document).DocumentPaginator;
-    }
-
-    /// <summary>Moves to the remembered place once the new document has been laid out.</summary>
-    private void ApplyPendingPosition() {
-        ApplyPendingMatch();
-        if ((_built is null) || ((_pendingFraction is null) && (_pendingBlock is null))) {
-            return;
-        }
-        TextElement? target = (_pendingBlock is int block) && (block < _built.Elements.Count) ? _built.Elements[block] : null;
-        if (Paged) {
-            DynamicDocumentPaginator paginator = Paginator(_built);
-            if (!paginator.IsPageCountValid) {
-                return;
-            }
-            int page = (target is not null)
-                ? paginator.GetPageNumber(paginator.GetObjectPosition(target)) + 1
-                : 1 + (int)Math.Round((_pendingFraction ?? 0) * (paginator.PageCount - 1));
-            _pendingFraction = null;
-            _pendingBlock = null;
-            PageViewer.GoToPage(Math.Clamp(page, 1, Math.Max(1, paginator.PageCount)));
-        }
-        else {
-            ScrollViewer? scroller = FindDescendant<ScrollViewer>(ScrollView);
-            if (scroller is null) {
-                return;
-            }
-            double? fraction = _pendingFraction;
-            _pendingFraction = null;
-            _pendingBlock = null;
-            if (target is not null) {
-                target.BringIntoView();
-            }
-            else if (fraction is double value) {
-                scroller.ScrollToVerticalOffset(value * scroller.ScrollableHeight);
-            }
-        }
-        UpdateStatus();
-    }
-
-    /// <summary>How far through the current chapter the reader is, from 0 to 1.</summary>
-    private double CurrentFraction() {
-        if (_built is null) {
-            return 0;
-        }
-        if (_pendingFraction is double pending) {
-            return pending;
-        }
-        if (Paged) {
-            int count = PageViewer.PageCount;
-            return (count > 1) ? Math.Clamp((PageViewer.MasterPageNumber - 1) / (double)(count - 1), 0, 1) : 0;
-        }
-        ScrollViewer? scroller = FindDescendant<ScrollViewer>(ScrollView);
-        return ((scroller is not null) && (scroller.ScrollableHeight > 0))
-            ? Math.Clamp(scroller.VerticalOffset / scroller.ScrollableHeight, 0, 1)
-            : 0;
-    }
-
-    private void Rebuild() {
-        if (_book is not null) {
-            ShowChapter(_chapterIndex, CurrentFraction());
+            ShowChapter(_chapterIndex, _seekFraction, _seekBlock, false, _seekOffset);
         }
     }
 
@@ -306,7 +192,7 @@ public partial class MainWindow : Window {
     }
 
     private void OnPositionChanged() {
-        if (_switching || (_book is null)) {
+        if (_book is null) {
             return;
         }
         TrackReading();
@@ -316,13 +202,13 @@ public partial class MainWindow : Window {
     }
 
     private void UpdateStatus() {
-        if ((_book is null) || (_built is null)) {
+        if ((_book is null) || !_shown) {
             ChapterText.Text = "";
             PageText.Text = "";
             BookProgress.Value = 0;
             return;
         }
-        double fraction = CurrentFraction();
+        double fraction = _fraction;
         double overall = (_book.Chapters.Count == 1)
             ? fraction
             : (_chapterIndex + (Paged ? PageShare() : fraction)) / _book.Chapters.Count;
@@ -334,10 +220,7 @@ public partial class MainWindow : Window {
 
     /// <summary>Share of the chapter that has been read once the current page is finished.</summary>
     private double PageShare() {
-        int count = PageViewer.PageCount;
-        return ((count > 0) && (_pendingFraction is null))
-            ? Math.Clamp((PageViewer.MasterPageNumber - 1) / (double)count, 0, 1)
-            : CurrentFraction();
+        return (_located && (_pages > 0)) ? _share : _fraction;
     }
 
     private void SaveProgress() {
@@ -349,7 +232,7 @@ public partial class MainWindow : Window {
             return;
         }
         recent.ChapterIndex = _chapterIndex;
-        recent.Fraction = CurrentFraction();
+        recent.Fraction = _fraction;
         recent.Progress = BookProgress.Value;
     }
 
@@ -369,46 +252,15 @@ public partial class MainWindow : Window {
     // ---------------------------------------------------------------- navigation
 
     private void NextPage() {
-        if ((_book is null) || (_built is null)) {
-            return;
-        }
-        if (Paged) {
-            if (PageViewer.CanGoToNextPage) {
-                PageViewer.NextPage();
-            }
-            else if (Paginator(_built).IsPageCountValid) {
-                NextChapter();
-            }
-            return;
-        }
-        ScrollViewer? scroller = FindDescendant<ScrollViewer>(ScrollView);
-        if ((scroller is not null) && (scroller.VerticalOffset < (scroller.ScrollableHeight - 1))) {
-            scroller.ScrollToVerticalOffset(scroller.VerticalOffset + (scroller.ViewportHeight * 0.9));
-        }
-        else {
-            NextChapter();
+        if ((_book is not null) && _shown) {
+            // The page knows whether there is another one; at the end of the chapter it asks for the next.
+            PostToReader(new Dictionary<string, object?> { ["t"] = "go", ["where"] = "next" });
         }
     }
 
     private void PreviousPage() {
-        if ((_book is null) || (_built is null)) {
-            return;
-        }
-        if (Paged) {
-            if (PageViewer.CanGoToPreviousPage) {
-                PageViewer.PreviousPage();
-            }
-            else {
-                PreviousChapter(true);
-            }
-            return;
-        }
-        ScrollViewer? scroller = FindDescendant<ScrollViewer>(ScrollView);
-        if ((scroller is not null) && (scroller.VerticalOffset > 1)) {
-            scroller.ScrollToVerticalOffset(scroller.VerticalOffset - (scroller.ViewportHeight * 0.9));
-        }
-        else {
-            PreviousChapter(true);
+        if ((_book is not null) && _shown) {
+            PostToReader(new Dictionary<string, object?> { ["t"] = "go", ["where"] = "previous" });
         }
     }
 
@@ -426,9 +278,16 @@ public partial class MainWindow : Window {
 
     protected override void OnPreviewKeyDown(KeyEventArgs e) {
         base.OnPreviewKeyDown(e);
-        bool control = Keyboard.Modifiers == ModifierKeys.Control;
+        if (HandleKey(e.Key, Keyboard.Modifiers)) {
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Acts on a shortcut or reading key, whether it was pressed in the window or inside the page.</summary>
+    private bool HandleKey(Key pressed, ModifierKeys modifiers) {
+        bool control = modifiers == ModifierKeys.Control;
         bool handled = true;
-        switch (e.Key) {
+        switch (pressed) {
             case Key.O when control:
                 OpenWithDialog();
                 break;
@@ -479,16 +338,15 @@ public partial class MainWindow : Window {
                 break;
         }
         if (handled) {
-            e.Handled = true;
-            return;
+            return true;
         }
         // Leave the keyboard alone while the reader is working in a side panel.
-        if ((_book is null) || (Keyboard.Modifiers is not (ModifierKeys.None or ModifierKeys.Control))
+        if ((_book is null) || (modifiers is not (ModifierKeys.None or ModifierKeys.Control))
             || IsFocusWithin(SettingsPanel) || IsFocusWithin(TocPanel) || IsFocusWithin(NotesPanel) || IsFocusWithin(SearchPanel)) {
-            return;
+            return false;
         }
         handled = true;
-        switch (e.Key) {
+        switch (pressed) {
             case Key.Right when control:
                 NextChapter();
                 break;
@@ -507,17 +365,17 @@ public partial class MainWindow : Window {
             case Key.End when control:
                 ShowChapter(_book.Chapters.Count - 1, 1);
                 break;
-            case Key.Home when Paged:
-                PageViewer.FirstPage();
+            case Key.Home when _shown:
+                PostToReader(new Dictionary<string, object?> { ["t"] = "go", ["where"] = "first" });
                 break;
-            case Key.End when Paged:
-                PageViewer.LastPage();
+            case Key.End when _shown:
+                PostToReader(new Dictionary<string, object?> { ["t"] = "go", ["where"] = "last" });
                 break;
             default:
                 handled = false;
                 break;
         }
-        e.Handled = handled;
+        return handled;
     }
 
     private static bool IsFocusWithin(DependencyObject panel) {
@@ -531,60 +389,11 @@ public partial class MainWindow : Window {
         return false;
     }
 
-    private void OnPagedMouseWheel(object sender, MouseWheelEventArgs e) {
-        e.Handled = true;
-        if (Keyboard.Modifiers == ModifierKeys.Control) {
-            _settings.FontSize += (e.Delta > 0) ? 1 : -1;
-        }
-        else if (e.Delta < 0) {
-            NextPage();
-        }
-        else {
-            PreviousPage();
-        }
-    }
-
-    private void OnScrollMouseWheel(object sender, MouseWheelEventArgs e) {
-        if (Keyboard.Modifiers == ModifierKeys.Control) {
-            e.Handled = true;
-            _settings.FontSize += (e.Delta > 0) ? 1 : -1;
-            return;
-        }
-        // Wheeling past the end of a chapter moves on, but only after a pause so momentum cannot skip chapters.
-        ScrollViewer? scroller = FindDescendant<ScrollViewer>(ScrollView);
-        if ((scroller is null) || ((DateTime.UtcNow - _lastScrollChange) < TimeSpan.FromMilliseconds(400))) {
-            return;
-        }
-        if ((e.Delta < 0) && (scroller.VerticalOffset >= (scroller.ScrollableHeight - 1))) {
-            e.Handled = true;
-            NextChapter();
-        }
-        else if ((e.Delta > 0) && (scroller.VerticalOffset <= 0)) {
-            e.Handled = true;
-            PreviousChapter(true);
-        }
-    }
-
     private void OnNestedListMouseWheel(object sender, MouseWheelEventArgs e) {
         // The profile list shows every item, so wheel input belongs to the settings panel around it.
         e.Handled = true;
         MouseWheelEventArgs forwarded = new(e.MouseDevice, e.Timestamp, e.Delta) { RoutedEvent = MouseWheelEvent };
         ((UIElement)((FrameworkElement)sender).Parent).RaiseEvent(forwarded);
-    }
-
-    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject {
-        int count = VisualTreeHelper.GetChildrenCount(root);
-        for (int i = 0; i < count; i++) {
-            DependencyObject child = VisualTreeHelper.GetChild(root, i);
-            if (child is T match) {
-                return match;
-            }
-            T? nested = FindDescendant<T>(child);
-            if (nested is not null) {
-                return nested;
-            }
-        }
-        return null;
     }
 
     // ---------------------------------------------------------------- settings
@@ -610,9 +419,6 @@ public partial class MainWindow : Window {
                     ApplyTheme();
                 }
                 break;
-            case nameof(ReaderSettings.PageWidth) or nameof(ReaderSettings.Columns):
-                Relayout();
-                break;
             case nameof(ReaderSettings.BookFormatting):
                 if (_book is { CanBookFormat: true }) {
                     _ = OpenAsync(_book.FilePath, true);
@@ -636,30 +442,16 @@ public partial class MainWindow : Window {
 
     private void ApplyTheme() {
         ThemeManager.Apply(_settings, this);
-        if (_built is not null) {
-            foreach (Image image in _built.Images) {
-                image.Opacity = ThemeManager.Current.ImageOpacity;
-            }
-        }
+        ApplyReaderTheme();
     }
 
     private void OnSystemThemeChanged() {
         Dispatcher.BeginInvoke(ApplyTheme);
     }
 
-    private void Relayout() {
-        if (_built is not null) {
-            CreateBuilder().ApplyLayout(_built, Viewport);
-        }
-    }
-
-    private void OnReaderSizeChanged(object sender, SizeChangedEventArgs e) {
-        Relayout();
-    }
-
     private void LoadFonts() {
         _fonts = FontLibrary.Load();
-        _font = FontLibrary.Find(_fonts, _settings.FontName, _settings.FontOrigin);
+        SetFont(FontLibrary.Find(_fonts, _settings.FontName, _settings.FontOrigin));
         ListCollectionView view = new(_fonts);
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(FontChoice.Group)));
         _suppressEvents = true;
@@ -672,7 +464,7 @@ public partial class MainWindow : Window {
         if (_suppressEvents || (FontCombo.SelectedItem is not FontChoice choice)) {
             return;
         }
-        _font = choice;
+        SetFont(choice);
         _settings.FontName = choice.Name;
         _settings.FontOrigin = choice.Origin;
         ScheduleRebuild();

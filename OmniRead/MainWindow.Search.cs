@@ -1,18 +1,16 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 
 using OmniRead.Localization;
 using OmniRead.Models;
-using OmniRead.Rendering;
 
 namespace OmniRead;
 
-/// <summary>One place the search text was found. <see cref="Ordinal"/> is its position among the matches in its block.</summary>
-public sealed record SearchHit(int ChapterIndex, int BlockIndex, int Ordinal, string Before, string Match, string After, string Where);
+/// <summary>One place the search text was found. <see cref="Offset"/> is where the match starts in its block.</summary>
+public sealed record SearchHit(int ChapterIndex, int BlockIndex, int Offset, string Before, string Match, string After, string Where);
 
 /// <summary>Searching the whole book.</summary>
 public partial class MainWindow {
@@ -60,15 +58,10 @@ public partial class MainWindow {
             for (int c = 0; (c < _book.Chapters.Count) && (hits.Count < MaxHits); c++) {
                 Chapter chapter = _book.Chapters[c];
                 for (int b = 0; (b < chapter.Blocks.Count) && (hits.Count < MaxHits); b++) {
-                    string? text = chapter.Blocks[b] switch {
-                        ParagraphBlock paragraph => paragraph.Text,
-                        HeadingBlock heading => heading.Text,
-                        _ => null
-                    };
+                    string? text = TextOf(chapter.Blocks[b]);
                     if (text is null) {
                         continue;
                     }
-                    int ordinal = 0;
                     for (int at = compare.IndexOf(text, query, CompareOptions.IgnoreCase);
                         (at >= 0) && (hits.Count < MaxHits);
                         at = compare.IndexOf(text, query, at + query.Length, CompareOptions.IgnoreCase)) {
@@ -77,7 +70,7 @@ public partial class MainWindow {
                         hits.Add(new SearchHit(
                             c,
                             b,
-                            ordinal++,
+                            at,
                             ((from > 0) ? "…" : "") + text[from..at].Replace('\n', ' '),
                             text.Substring(at, query.Length),
                             text[(at + query.Length)..to].Replace('\n', ' ') + ((to < text.Length) ? "…" : ""),
@@ -102,47 +95,8 @@ public partial class MainWindow {
         if (_suppressEvents || (SearchList.SelectedItem is not SearchHit hit)) {
             return;
         }
+        // The chapter is shown with the match tinted and its page turned to.
         _pendingMatch = hit;
-        ShowChapter(hit.ChapterIndex, 0);
-    }
-
-    /// <summary>Selects the chosen search result and turns to its page, once the chapter has been laid out.</summary>
-    private void ApplyPendingMatch() {
-        if ((_pendingMatch is not SearchHit hit) || (_built is null)) {
-            return;
-        }
-        if ((hit.ChapterIndex != _chapterIndex) || (hit.BlockIndex >= _built.Elements.Count)
-            || (_built.Elements[hit.BlockIndex] is not TextElement element)) {
-            _pendingMatch = null;
-            return;
-        }
-        DynamicDocumentPaginator paginator = Paginator(_built);
-        if (Paged && !paginator.IsPageCountValid) {
-            return;
-        }
-        _pendingMatch = null;
-        // The typeset text can differ slightly from the source (a list number in front, say), so the match is
-        // found again here by counting occurrences.
-        string text = TextPositions.TextOf(element);
-        CompareInfo compare = CultureInfo.CurrentCulture.CompareInfo;
-        int at = -1;
-        for (int i = 0; i <= hit.Ordinal; i++) {
-            at = ((at + 1) < text.Length) ? compare.IndexOf(text, hit.Match, at + 1, CompareOptions.IgnoreCase) : -1;
-            if (at < 0) {
-                return;
-            }
-        }
-        TextPointer from = TextPositions.PointerAt(element, at);
-        TextPointer to = TextPositions.PointerAt(element, at + hit.Match.Length);
-        if (Paged) {
-            int page = paginator.GetPageNumber(from);
-            if (page >= 0) {
-                PageViewer.GoToPage(page + 1);
-            }
-        }
-        else {
-            element.BringIntoView();
-        }
-        CurrentSelection?.Select(from, to);
+        ShowChapter(hit.ChapterIndex, 0, hit.BlockIndex, false, hit.Offset);
     }
 }

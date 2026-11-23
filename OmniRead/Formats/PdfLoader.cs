@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows.Media;
 
 using OmniRead.Localization;
 using OmniRead.Models;
@@ -28,7 +27,7 @@ internal static class PdfLoader {
         return content;
     }
 
-    private static async Task<ImageSource?> RenderAsync(PdfDocument pdf, uint index) {
+    private static async Task<byte[]?> RenderAsync(PdfDocument pdf, uint index) {
         try {
             using PdfPage page = pdf.GetPage(index);
             using InMemoryRandomAccessStream stream = new();
@@ -39,7 +38,7 @@ internal static class PdfLoader {
             using Stream managed = stream.AsStreamForRead();
             using MemoryStream buffer = new();
             await managed.CopyToAsync(buffer);
-            return FileHelpers.Decode(buffer.ToArray());
+            return buffer.ToArray();
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.Runtime.InteropServices.COMException) {
             return null;

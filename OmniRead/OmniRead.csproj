@@ -24,12 +24,16 @@
     <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="Assets\OmniRead.ico" />
     <Resource Include="Assets\OmniRead.png" />
+    <!-- The page shown in the web view: structural styles and the script that paginates a chapter. -->
+    <EmbeddedResource Include="Rendering\Reader.html" LogicalName="OmniRead.Rendering.Reader.html" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.10.5" />
     <PackageReference Include="AngleSharp.Css" Version="1.5.0" />
     <PackageReference Include="Markdig" Version="1.6.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
+    <PackageReference Include="VersOne.Epub" Version="3.3.6" />
   </ItemGroup>
 
 </Project>

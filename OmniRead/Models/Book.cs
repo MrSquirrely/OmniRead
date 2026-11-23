@@ -20,6 +20,9 @@ public sealed class LoadedContent {
 
     public string? Author { get; set; }
 
+    /// <summary>The language the book says it is written in, as a code such as "en" or "pt-BR".</summary>
+    public string? Language { get; set; }
+
     public List<Chapter> Chapters { get; } = [];
 
     /// <summary>True for formats that already carry book structure (EPUB, FB2, PDF).</summary>
@@ -36,6 +39,9 @@ public sealed class Book {
     public required string Title { get; init; }
 
     public string? Author { get; init; }
+
+    /// <summary>The book's language code when the file declares one; hyphenation follows it.</summary>
+    public string? Language { get; init; }
 
     public required string FilePath { get; init; }
 

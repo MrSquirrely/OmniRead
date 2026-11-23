@@ -29,9 +29,9 @@
   <data name="Title_BookAuthor" xml:space="preserve"><value>{0} · {1} – OmniRead</value></data>
 
   <!-- Reading books -->
-  <data name="Epub_NoContainer" xml:space="preserve"><value>Este EPUB no tiene archivo contenedor.</value></data>
-  <data name="Epub_NoPackage" xml:space="preserve"><value>Este EPUB no indica un documento de paquete.</value></data>
-  <data name="Epub_PackageMissing" xml:space="preserve"><value>Falta el documento de paquete del EPUB.</value></data>
+  <data name="Error_WebView" xml:space="preserve"><value>No se ha podido iniciar el área de lectura. OmniRead necesita Microsoft Edge WebView2 Runtime, que forma parte de Windows 11.
+
+{0}</value></data>
   <data name="Epub_NoText" xml:space="preserve"><value>No se ha encontrado texto legible. Puede que el libro esté protegido con DRM.</value></data>
   <data name="Epub_Cover" xml:space="preserve"><value>Cubierta</value></data>
   <data name="Fb2_NoBook" xml:space="preserve"><value>El archivo comprimido no contiene un libro FB2.</value></data>

@@ -1,0 +1,643 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; font-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+html, body { margin: 0; height: 100%; }
+body { background: var(--page, #fff); color: var(--text, #000); overflow: hidden; cursor: default; }
+#view { position: fixed; inset: 0; overflow: hidden; outline: none; }
+body.scroll #view { overflow-y: auto; }
+#frame { position: relative; }
+body.paged #frame { position: absolute; overflow: clip; }
+#content { orphans: 2; widows: 2; overflow-wrap: break-word; cursor: text; }
+body.paged #content { height: 100%; column-fill: auto; }
+.edge { position: fixed; top: 0; bottom: 0; width: 44px; display: none; align-items: center; justify-content: center;
+        cursor: pointer; opacity: 0; color: var(--muted); user-select: none;
+        font: 18px "Segoe Fluent Icons", "Segoe MDL2 Assets"; }
+body.paged .edge { display: flex; }
+.edge:hover { opacity: 1; }
+#previous { left: 0; }
+#next { right: 0; }
+::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+::highlight(marked) { background-color: var(--highlight); }
+::highlight(found) { background-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+::highlight(spoken) { background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+</style>
+<style id="typography"></style>
+</head>
+<body>
+<div id="view" tabindex="0"><div id="frame"><div id="content"></div></div></div>
+<div id="previous" class="edge">&#xE76B;</div>
+<div id="next" class="edge">&#xE76C;</div>
+<script>
+(() => {
+    'use strict';
+    const view = document.getElementById('view');
+    const frame = document.getElementById('frame');
+    const content = document.getElementById('content');
+    const typography = document.getElementById('typography');
+    const post = message => chrome.webview.postMessage(message);
+
+    let shown = null;       // the chapter on screen, as the host sent it
+    let blocks = [];        // element of each source block, by block index
+    let page = 0;
+    let pages = 1;
+    let step = 1;           // distance between the left edges of two consecutive pages
+    let anchor = { f: 0 };  // the place to keep on screen when the layout changes: {b, o} or {f}
+    let lastWheel = 0;
+    let lastScroll = 0;
+    let lastEdge = 0;
+    let scrollFrame = 0;
+    let layoutTimer = 0;
+    let selectionTimer = 0;
+
+    // ---------------------------------------------------------------- text offsets
+
+    // Visits the text nodes and line breaks that count towards a block's character offsets.
+    function walker(element) {
+        return document.createTreeWalker(element, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+            acceptNode(node) {
+                if (node.nodeType !== 1) {
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+                if (node.hasAttribute('data-x')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return (node.nodeName === 'BR') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+            }
+        });
+    }
+
+    // In blocks the app hyphenated, soft hyphens are break marks and do not count as characters.
+    function visibleLength(text, breaks) {
+        if (!breaks) {
+            return text.length;
+        }
+        let count = 0;
+        for (let i = 0; i < text.length; i++) {
+            if (text.charCodeAt(i) !== 0xAD) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Index in the node's own text of the given count of visible characters.
+    function rawIndex(text, visible, breaks) {
+        if (!breaks) {
+            return visible;
+        }
+        let i = 0;
+        for (let count = 0; i < text.length && (count < visible || text.charCodeAt(i) === 0xAD); i++) {
+            if (text.charCodeAt(i) !== 0xAD) {
+                count++;
+            }
+        }
+        return i;
+    }
+
+    function indexOf(node) {
+        return Array.prototype.indexOf.call(node.parentNode.childNodes, node);
+    }
+
+    // Character offset of a DOM position within a block.
+    function offsetIn(element, node, offset) {
+        const position = document.createRange();
+        position.setStart(node, offset);
+        position.collapse(true);
+        const nodes = walker(element);
+        const breaks = element.hasAttribute('data-hy');
+        let count = 0;
+        for (let current = nodes.nextNode(); current; current = nodes.nextNode()) {
+            if (current.nodeType === 3) {
+                if (current === node) {
+                    return count + visibleLength(current.data.slice(0, offset), breaks);
+                }
+                if (position.comparePoint(current, current.length) > 0) {
+                    return count;
+                }
+                count += visibleLength(current.data, breaks);
+            }
+            else {
+                if (position.comparePoint(current.parentNode, indexOf(current) + 1) > 0) {
+                    return count;
+                }
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // DOM position of a character offset within a block.
+    function pointAt(element, offset) {
+        const nodes = walker(element);
+        const breaks = element.hasAttribute('data-hy');
+        let last = null;
+        for (let current = nodes.nextNode(); current; current = nodes.nextNode()) {
+            if (current.nodeType === 3) {
+                const length = visibleLength(current.data, breaks);
+                if (offset <= length) {
+                    return [current, rawIndex(current.data, offset, breaks)];
+                }
+                offset -= length;
+                last = [current, current.length];
+            }
+            else {
+                if (offset < 1) {
+                    return [current.parentNode, indexOf(current)];
+                }
+                offset--;
+                last = [current.parentNode, indexOf(current) + 1];
+            }
+        }
+        return last || [element, 0];
+    }
+
+    // Which block a DOM position belongs to, and how far into it.
+    function locate(node, offset) {
+        let element = (node.nodeType === 1) ? node : node.parentNode;
+        let block = element.closest('[data-b]');
+        if (!block) {
+            // Between two blocks: the selection ends where the next block begins.
+            const next = (node === content) ? content.children[offset] : null;
+            if (next) {
+                return { b: +next.dataset.b, o: 0 };
+            }
+            block = content.lastElementChild;
+            return block ? { b: +block.dataset.b, o: offsetIn(block, block, block.childNodes.length) } : { b: 0, o: 0 };
+        }
+        return { b: +block.dataset.b, o: offsetIn(block, node, offset) };
+    }
+
+    function rangeOf(startBlock, start, endBlock, end) {
+        const first = blocks[startBlock];
+        const last = blocks[endBlock];
+        if (!first || !last) {
+            return null;
+        }
+        const range = document.createRange();
+        try {
+            range.setStart(...pointAt(first, start));
+            range.setEnd(...pointAt(last, end));
+        }
+        catch {
+            return null;
+        }
+        return range;
+    }
+
+    // ---------------------------------------------------------------- layout
+
+    function layout() {
+        const width = Math.max(innerWidth, 200);
+        const height = Math.max(innerHeight, 200);
+        const paged = shown.paged;
+        const root = document.documentElement.style;
+        frame.style.cssText = '';
+        content.style.columnWidth = '';
+        content.style.columnGap = '';
+        if (shown.fixed) {
+            // Pre-rendered pages: one picture filling the window.
+            const inner = width - 24;
+            root.setProperty('--full-height', (paged ? height - 24 : height - 40) + 'px');
+            if (paged) {
+                frame.style.cssText = `left:12px;top:12px;width:${inner}px;height:${height - 24}px`;
+                content.style.columnWidth = inner + 'px';
+                content.style.columnGap = '24px';
+                step = inner + 24;
+            }
+            else {
+                frame.style.cssText = `width:${inner}px;margin:12px auto`;
+            }
+            return;
+        }
+        const gap = Math.round(shown.gap);
+        const columns = (!paged || shown.title || shown.columns === 1) ? 1
+            : (shown.columns === 2) ? 2
+            : (width >= shown.measure * 1.5 + gap + 96) ? 2 : 1;
+        const wanted = Math.max(160, Math.min(width - (paged ? 112 : 56), columns * shown.measure + (columns - 1) * gap));
+        const column = Math.floor((wanted - (columns - 1) * gap) / columns);
+        const inner = column * columns + (columns - 1) * gap;
+        const horizontal = Math.max(paged ? 56 : 28, Math.round((width - inner) / 2));
+        const vertical = paged ? Math.round(Math.min(72, Math.max(24, height * 0.07))) : 40;
+        root.setProperty('--img-max', Math.max(100, (height - 2 * vertical) * 0.92) + 'px');
+        root.setProperty('--full-height', (height - 2 * vertical) + 'px');
+        if (paged) {
+            frame.style.cssText = `left:${horizontal}px;top:${vertical}px;width:${inner}px;height:${height - 2 * vertical}px`;
+            content.style.columnWidth = column + 'px';
+            content.style.columnGap = gap + 'px';
+            step = inner + gap;
+        }
+        else {
+            frame.style.cssText = `width:${inner}px;margin:${vertical}px auto`;
+        }
+    }
+
+    function measure() {
+        if (!shown.paged) {
+            pages = 1;
+            return;
+        }
+        const gap = step - frame.clientWidth;
+        pages = Math.max(1, Math.round((content.scrollWidth + gap) / step));
+    }
+
+    function setPage(number) {
+        page = Math.max(0, Math.min(pages - 1, number));
+        content.style.transform = `translateX(${-page * step}px)`;
+    }
+
+    // The first rectangle of a place in the text.
+    function rectAt(block, offset) {
+        const element = blocks[block];
+        if (!element) {
+            return null;
+        }
+        if (offset > 0) {
+            const [node, at] = pointAt(element, offset);
+            const range = document.createRange();
+            try {
+                range.setStart(node, at);
+                range.setEnd(node, (node.nodeType === 3 && at < node.length) ? at + 1 : at);
+                const found = range.getClientRects()[0];
+                if (found) {
+                    return found;
+                }
+            }
+            catch {
+                // Fall back to the start of the block.
+            }
+        }
+        return element.getClientRects()[0] || element.getBoundingClientRect();
+    }
+
+    function pageOf(rect) {
+        return Math.max(0, Math.min(pages - 1, Math.floor((rect.left - content.getBoundingClientRect().left + 1) / step)));
+    }
+
+    function scrollLimit() {
+        return Math.max(0, view.scrollHeight - view.clientHeight);
+    }
+
+    // Brings the anchor back on screen after the layout changed.
+    function seek() {
+        const rect = (anchor.b !== undefined) ? rectAt(anchor.b, anchor.o) : null;
+        if (shown.paged) {
+            setPage(rect ? pageOf(rect) : Math.round((anchor.f || 0) * (pages - 1)));
+        }
+        else if (rect) {
+            view.scrollTop += rect.top - 40;
+        }
+        else {
+            view.scrollTop = (anchor.f || 0) * scrollLimit();
+        }
+    }
+
+    function caretOffset(element, x, y) {
+        const caret = document.caretRangeFromPoint(x, y);
+        return (caret && element.contains(caret.startContainer)) ? offsetIn(element, caret.startContainer, caret.startOffset) : 0;
+    }
+
+    // The place in the text at the top of what is on screen.
+    function top() {
+        const area = frame.getBoundingClientRect();
+        for (const element of blocks) {
+            if (!element) {
+                continue;
+            }
+            const rect = element.getBoundingClientRect();
+            const block = +element.dataset.b;
+            if (shown.paged) {
+                if (rect.right > area.left + 1) {
+                    return (rect.left >= area.left - 1) ? { b: block, o: 0 }
+                        : { b: block, o: caretOffset(element, area.left + 3, area.top + shown.line / 2) };
+                }
+            }
+            else if (rect.bottom > 1) {
+                return (rect.top >= -1) ? { b: block, o: 0 } : { b: block, o: caretOffset(element, rect.left + 3, shown.line / 2) };
+            }
+        }
+        return { b: 0, o: 0 };
+    }
+
+    function report() {
+        let fraction;
+        let share;
+        if (shown.paged) {
+            fraction = (pages > 1) ? page / (pages - 1) : 0;
+            share = page / pages;
+        }
+        else {
+            const limit = scrollLimit();
+            fraction = (limit > 0) ? Math.min(1, view.scrollTop / limit) : 0;
+            share = fraction;
+        }
+        const place = top();
+        post({ t: 'pos', id: shown.id, page, pages, f: fraction, share, b: place.b, o: place.o });
+    }
+
+    function relayout() {
+        if (!shown) {
+            return;
+        }
+        layout();
+        measure();
+        seek();
+        report();
+    }
+
+    function queueRelayout() {
+        clearTimeout(layoutTimer);
+        layoutTimer = setTimeout(relayout, 60);
+    }
+
+    // ---------------------------------------------------------------- showing and moving
+
+    function applyVariables(variables) {
+        const root = document.documentElement.style;
+        for (const [name, value] of Object.entries(variables)) {
+            root.setProperty('--' + name, value);
+        }
+        root.colorScheme = variables.scheme;
+    }
+
+    function setMarked(list) {
+        const ranges = (list || []).map(item => rangeOf(item[0], item[1], item[2], item[3])).filter(Boolean);
+        if (ranges.length) {
+            CSS.highlights.set('marked', new Highlight(...ranges));
+        }
+        else {
+            CSS.highlights.delete('marked');
+        }
+    }
+
+    // Tints a passage and makes sure it can be seen. Returns whether the passage exists.
+    function point(name, block, start, length, always) {
+        const range = rangeOf(block, start, block, start + length);
+        if (!range) {
+            return false;
+        }
+        CSS.highlights.set(name, new Highlight(range));
+        // A passage that starts a page also has an empty rectangle at the end of the page before; skip it.
+        const rect = Array.from(range.getClientRects()).find(item => item.width > 0) || rectAt(block, start);
+        if (!rect) {
+            return true;
+        }
+        if (shown.paged) {
+            const target = pageOf(rect);
+            if (target !== page) {
+                setPage(target);
+            }
+        }
+        else if (always || rect.top < 40 || rect.bottom > view.clientHeight - 40) {
+            view.scrollTop += rect.top - Math.round(view.clientHeight * 0.25);
+        }
+        anchor = { b: block, o: start };
+        report();
+        return true;
+    }
+
+    function show(message) {
+        shown = message;
+        applyVariables(message.vars);
+        typography.textContent = message.css;
+        document.documentElement.lang = message.lang;
+        document.body.className = (message.paged ? 'paged' : 'scroll') + (message.fixed ? ' fixed' : '');
+        CSS.highlights.clear();
+        getSelection().removeAllRanges();
+        content.style.transform = 'none';
+        content.innerHTML = message.html;
+        blocks = [];
+        for (const element of content.querySelectorAll('[data-b]')) {
+            blocks[+element.dataset.b] = element;
+        }
+        anchor = (message.b >= 0) ? { b: message.b, o: message.o || 0 } : { f: message.f || 0 };
+        view.scrollTop = 0;
+        setMarked(message.marked);
+        relayout();
+        if (message.found) {
+            point('found', message.found[0], message.found[1], message.found[2], true);
+        }
+        const id = message.id;
+        const current = () => shown && shown.id === id;
+        document.fonts.ready.then(() => current() && relayout());
+        for (const image of content.querySelectorAll('img')) {
+            if (!image.complete) {
+                // A picture changes the height of the text around it, and with it the page count.
+                image.addEventListener('load', () => current() && queueRelayout(), { once: true });
+                image.addEventListener('error', () => { image.style.display = 'none'; }, { once: true });
+            }
+        }
+    }
+
+    function leave(direction) {
+        const now = performance.now();
+        if (now - lastEdge > 450) {
+            lastEdge = now;
+            post({ t: 'edge', d: direction });
+        }
+    }
+
+    // Moves by a page ('next', 'previous') or to an end of the chapter ('first', 'last').
+    function go(where) {
+        if (!shown) {
+            return;
+        }
+        if (shown.paged) {
+            if (where === 'next') {
+                if (page >= pages - 1) {
+                    return leave(1);
+                }
+                setPage(page + 1);
+            }
+            else if (where === 'previous') {
+                if (page <= 0) {
+                    return leave(-1);
+                }
+                setPage(page - 1);
+            }
+            else {
+                setPage((where === 'first') ? 0 : pages - 1);
+            }
+            anchor = top();
+            report();
+            return;
+        }
+        const limit = scrollLimit();
+        if (where === 'next') {
+            if (view.scrollTop >= limit - 1) {
+                return leave(1);
+            }
+            view.scrollTop += view.clientHeight * 0.9;
+        }
+        else if (where === 'previous') {
+            if (view.scrollTop <= 1) {
+                return leave(-1);
+            }
+            view.scrollTop -= view.clientHeight * 0.9;
+        }
+        else {
+            view.scrollTop = (where === 'first') ? 0 : limit;
+        }
+    }
+
+    // ---------------------------------------------------------------- input
+
+    function sendSelection() {
+        clearTimeout(selectionTimer);
+        selectionTimer = 0;
+        const selection = getSelection();
+        if (!selection.rangeCount || selection.isCollapsed || !content.contains(selection.anchorNode)) {
+            post({ t: 'sel', text: '' });
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        const start = locate(range.startContainer, range.startOffset);
+        const end = locate(range.endContainer, range.endOffset);
+        post({ t: 'sel', b: start.b, s: start.o, eb: end.b, e: end.o, text: plainSelection() });
+    }
+
+    // The selected text without the soft hyphens used as break marks.
+    function plainSelection() {
+        return getSelection().toString().replace(/­/g, '');
+    }
+
+    addEventListener('copy', event => {
+        event.preventDefault();
+        event.clipboardData.setData('text/plain', plainSelection());
+    });
+
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(selectionTimer);
+        selectionTimer = setTimeout(sendSelection, 80);
+    });
+
+    function flushSelection() {
+        if (selectionTimer) {
+            sendSelection();
+        }
+    }
+
+    const readerKeys = ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'Backspace', 'Home', 'End', 'Escape', 'F11'];
+
+    addEventListener('keydown', event => {
+        const key = event.key;
+        if (key === 'Control' || key === 'Shift' || key === 'Alt' || event.altKey) {
+            return;
+        }
+        // Copy and select-all stay with the browser; everything else the reader uses goes to the app.
+        if (event.ctrlKey ? !['c', 'a', 'insert'].includes(key.toLowerCase()) : readerKeys.includes(key)) {
+            event.preventDefault();
+            flushSelection();
+            post({ t: 'key', code: event.keyCode, ctrl: event.ctrlKey, shift: event.shiftKey });
+        }
+    });
+
+    addEventListener('wheel', event => {
+        if (event.ctrlKey) {
+            event.preventDefault();
+            post({ t: 'zoom', d: (event.deltaY < 0) ? 1 : -1 });
+            return;
+        }
+        if (!shown) {
+            return;
+        }
+        const now = performance.now();
+        if (shown.paged) {
+            event.preventDefault();
+            if (now - lastWheel > 140) {
+                lastWheel = now;
+                go((event.deltaY > 0) ? 'next' : 'previous');
+            }
+            return;
+        }
+        // Wheeling past the end of a chapter moves on, but only after a pause so momentum cannot skip chapters.
+        if (now - lastScroll < 400) {
+            return;
+        }
+        if (event.deltaY > 0 && view.scrollTop >= scrollLimit() - 1) {
+            event.preventDefault();
+            leave(1);
+        }
+        else if (event.deltaY < 0 && view.scrollTop <= 0) {
+            event.preventDefault();
+            leave(-1);
+        }
+    }, { passive: false });
+
+    view.addEventListener('scroll', () => {
+        lastScroll = performance.now();
+        if (!scrollFrame) {
+            scrollFrame = requestAnimationFrame(() => {
+                scrollFrame = 0;
+                if (shown && !shown.paged) {
+                    anchor = top();
+                    report();
+                }
+            });
+        }
+    });
+
+    addEventListener('resize', () => relayout());
+
+    addEventListener('mousedown', () => CSS.highlights.delete('found'));
+
+    content.addEventListener('click', event => {
+        const link = event.target.closest('a[data-h]');
+        if (link) {
+            event.preventDefault();
+            post({ t: 'link', href: link.dataset.h, text: link.textContent, sup: !!(link.closest('sup') || link.querySelector('sup')) });
+        }
+    });
+
+    addEventListener('contextmenu', event => {
+        event.preventDefault();
+        sendSelection();
+        post({ t: 'menu' });
+    });
+
+    document.getElementById('previous').addEventListener('click', () => go('previous'));
+    document.getElementById('next').addEventListener('click', () => go('next'));
+
+    // A book dropped on the page is opened by the app.
+    addEventListener('dragover', event => event.preventDefault());
+    addEventListener('drop', event => {
+        event.preventDefault();
+        if (event.dataTransfer.files.length) {
+            chrome.webview.postMessageWithAdditionalObjects({ t: 'drop' }, event.dataTransfer.files);
+        }
+    });
+
+    chrome.webview.addEventListener('message', event => {
+        const message = event.data;
+        switch (message.t) {
+            case 'show':
+                show(message);
+                break;
+            case 'theme':
+                applyVariables(message.vars);
+                break;
+            case 'go':
+                go(message.where);
+                break;
+            case 'marked':
+                getSelection().removeAllRanges();
+                setMarked(message.list);
+                break;
+            case 'speak':
+                if (shown && shown.id === message.id) {
+                    point('spoken', message.b, message.s, message.n, false);
+                }
+                break;
+            case 'quiet':
+                CSS.highlights.delete('spoken');
+                break;
+        }
+    });
+
+    post({ t: 'ready' });
+})();
+</script>
+</body>
+</html>

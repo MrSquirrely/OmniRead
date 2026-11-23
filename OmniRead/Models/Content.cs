@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Media;
 
 namespace OmniRead.Models;
 
@@ -66,7 +65,7 @@ public sealed record ParagraphBlock(
 
 public sealed record SceneBreakBlock : ContentBlock;
 
-/// <summary>An image that is decoded on demand, so large books do not hold every picture in memory.</summary>
-public sealed record ImageBlock(Func<Task<ImageSource?>> Load, bool FullPage = false) : ContentBlock;
+/// <summary>An image whose encoded bytes are read on demand, so large books do not hold every picture in memory.</summary>
+public sealed record ImageBlock(Func<Task<byte[]?>> Load, bool FullPage = false) : ContentBlock;
 
 public sealed record TableBlock(IReadOnlyList<IReadOnlyList<IReadOnlyList<InlineRun>>> Rows, bool HasHeader) : ContentBlock;

@@ -4,10 +4,31 @@ A WPF book reader for Windows 11 (.NET 10, Windows SDK 10.0.22621).
 
     dotnet run --project OmniRead
 
+The window is WPF; the page itself is drawn by Microsoft Edge WebView2, whose runtime is part of Windows 11.
+
+## How a page is drawn
+
+Every format is loaded into the same list of blocks (headings, paragraphs, pictures, tables). `Rendering/ChapterHtml`
+typesets one chapter of them as HTML with the reader's font, size and spacing, and posts it to
+`Rendering/Reader.html`, the page shown in the web view. Its script lays the chapter out in CSS columns for paged
+view (or one scrolling column), turns pages, and reports the page count, the place at the top of the screen and
+the selection back to the app. Pictures and font files are handed to the page by the app on request; the page
+loads nothing from the network, and book files never run scripts because only the app's own markup reaches it.
+
+The browser's profile is kept in `%LocalAppData%\OmniRead\WebView2`.
+
+WebView2 has no hyphenation dictionaries, so words are hyphenated by OmniRead itself with the TeX hyphenation
+patterns in `OmniRead/Data/Hyphenation` (English and Spanish). The language comes from the book (EPUB and
+FictionBook say which they are in) and otherwise from the interface language; books in other languages are
+justified without hyphenation.
+
 ## Formats
 
 EPUB, FictionBook (.fb2, .fbz), PDF, Markdown, plain text, HTML, Word (.docx) and RTF.
 PDF pages are rendered with `Windows.Data.Pdf` and shown as fixed pages; everything else reflows.
+
+EPUB packages (metadata, reading order, contents, cover) are read with VersOne.Epub; archives whose paths use
+backslashes, which some Windows tools write, are corrected on the way in.
 
 EPUB and HTML stylesheets are honoured through AngleSharp.Css: emphasis, small caps, alignment, insets, extra
 spacing, relative sizes and hidden content. Each block keeps only what differs from the book's ordinary
@@ -41,6 +62,7 @@ folder inside another listed folder gets its own shelf. With no folders it shows
 read, title or author. Click a book to open it; right-click for a menu (open, show in folder, copy path, forget
 reading progress). Titles, authors and covers are read from EPUB and FB2 files, PDFs show their first page, and other
 formats show a title card. What is found is cached in `%LocalAppData%\OmniRead` (`library.json` and `Covers`).
+
 ## Bookmarks and highlights
 
 Ctrl+D bookmarks the top of the page; select text and press Ctrl+H to highlight it. Both are listed in the
@@ -51,12 +73,12 @@ stored as a paragraph plus a character offset, so they survive font and window c
 ## Read aloud
 
 Ctrl+R (or the speaker button) reads from the top of the page, or from selected text, using the Windows voices
-(`Windows.Media.SpeechSynthesis`). The sentence being spoken is selected and pages turn to follow it. Voice and
+(`Windows.Media.SpeechSynthesis`). The sentence being spoken is tinted and pages turn to follow it. Voice and
 speed are under Reading settings. PDFs cannot be read aloud because their pages are images.
 
 ## Search, dictionary and footnotes
 
-Ctrl+F searches the whole book and lists every match with its chapter; picking one goes to the page and selects
+Ctrl+F searches the whole book and lists every match with its chapter; picking one goes to the page and tints
 the match. Select a word and press Ctrl+K (or right-click it) to see its definition.
 The dictionary is built in and works offline: `OmniRead/Data/dictionary.txt.gz` holds about 147,000 English words
 from WordNet 3.1 (Princeton University; licence in `Data/WORDNET-LICENSE.txt`), and plurals and other inflected forms
@@ -117,8 +139,9 @@ Appearance and applies after a restart. In XAML use `{l:Loc Some_Key}`; in code 
 
     dotnet publish OmniRead -p:PublishProfile=SingleFile
 
-writes a single self-contained `release\OmniRead.exe` for 64-bit Windows 11. Fonts and the dictionary are inside
-it; on first run it unpacks itself to a folder under `%TEMP%\.net`.
+writes a single self-contained `release\OmniRead.exe` for 64-bit Windows 11. Fonts, the dictionary and the
+hyphenation patterns are inside it; on first run it unpacks itself to a folder under `%TEMP%\.net`. The WebView2
+runtime is not inside it: Windows 11 already has it.
 
 ## Licence
 
@@ -126,6 +149,9 @@ OmniRead is free software under the GNU General Public License, version 3 or (at
 see `LICENSE`. It comes with no warranty.
 
 Bundled material keeps its own licence: the fonts in `OmniRead/Fonts` are under the SIL Open Font License (text
-beside each), the dictionary data is from WordNet 3.1 (`OmniRead/Data/WORDNET-LICENSE.txt`), and the libraries
-AngleSharp, AngleSharp.Css (MIT) and Markdig (BSD 2-Clause) are fetched from NuGet. Piper and its voices are not
-part of OmniRead and are downloaded separately under their own terms.
+beside each), the dictionary data is from WordNet 3.1 (`OmniRead/Data/WORDNET-LICENSE.txt`), and the hyphenation
+patterns in `OmniRead/Data/Hyphenation` are the unmodified files of the TeX hyph-utf8 project, each with its
+licence at the top (American English: Gerard Kuiken's permissive notice, including Knuth's `hyphen.tex` tables;
+Spanish: MIT). The libraries AngleSharp, AngleSharp.Css (MIT), Markdig (BSD 2-Clause), VersOne.Epub (Unlicense) and
+the Microsoft WebView2 SDK (BSD-style) are fetched from NuGet. Piper and its voices are not part of OmniRead and
+are downloaded separately under their own terms.

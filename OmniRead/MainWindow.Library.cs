@@ -63,13 +63,8 @@ public partial class MainWindow {
         SaveProgress();
         SettingsStore.Save(_settings);
         _book = null;
-        _built = null;
-        PageViewer.Document = null;
-        ScrollView.Document = null;
-        PageViewer.Visibility = Visibility.Collapsed;
-        ScrollView.Visibility = Visibility.Collapsed;
-        PreviousEdge.Visibility = Visibility.Collapsed;
-        NextEdge.Visibility = Visibility.Collapsed;
+        _shown = false;
+        Web.Visibility = Visibility.Collapsed;
         TocList.ItemsSource = null;
         LoadAnnotations();
         Title = "OmniRead";

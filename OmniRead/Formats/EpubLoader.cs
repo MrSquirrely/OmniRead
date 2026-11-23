@@ -1,6 +1,5 @@
 using System.IO;
 using System.IO.Compression;
-using System.Xml.Linq;
 
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
@@ -9,80 +8,91 @@ using AngleSharp.Html.Parser;
 using OmniRead.Localization;
 using OmniRead.Models;
 
+using VersOne.Epub;
+using VersOne.Epub.Options;
+
 namespace OmniRead.Formats;
 
+/// <summary>
+/// Reads EPUB 2 and 3 books. The package itself (metadata, reading order, contents, stylesheets) is read by
+/// VersOne.Epub; each text file is then flattened into reader blocks like any other HTML.
+/// </summary>
 internal static class EpubLoader {
-    private static readonly XNamespace Container = "urn:oasis:names:tc:opendocument:xmlns:container";
-    private static readonly XNamespace DublinCore = "http://purl.org/dc/elements/1.1/";
-    private static readonly XNamespace Ncx = "http://www.daisy.org/z3986/2005/ncx/";
+    /// <summary>Opens a book leniently: real-world EPUBs break the standard in many small ways.</summary>
+    public static EpubBookRef Open(string path) {
+        EpubReaderOptions options = new(EpubReaderOptionsPreset.IGNORE_ALL_ERRORS);
+        EpubBookRef? book = HasBackslashNames(path)
+            ? EpubReader.OpenBook(Repack(path), options)
+            : EpubReader.OpenBook(path, options);
+        return book ?? throw new InvalidDataException(Localizer.Get("Epub_NoText"));
+    }
 
-    private sealed record ManifestItem(string Path, string MediaType, string Properties);
+    /// <summary>Some Windows tools write archive paths with backslashes, which no file in the book can then be found under.</summary>
+    private static bool HasBackslashNames(string path) {
+        using ZipArchive zip = ZipFile.OpenRead(path);
+        return zip.Entries.Any(static entry => entry.FullName.Contains('\\'));
+    }
+
+    /// <summary>Copies the archive into memory with its paths corrected to forward slashes.</summary>
+    private static MemoryStream Repack(string path) {
+        MemoryStream repacked = new();
+        using (ZipArchive source = ZipFile.OpenRead(path))
+        using (ZipArchive target = new(repacked, ZipArchiveMode.Create, true)) {
+            foreach (ZipArchiveEntry entry in source.Entries) {
+                using Stream input = entry.Open();
+                using Stream output = target.CreateEntry(entry.FullName.Replace('\\', '/'), CompressionLevel.NoCompression).Open();
+                input.CopyTo(output);
+            }
+        }
+        repacked.Position = 0;
+        return repacked;
+    }
 
     public static LoadedContent Load(string path) {
-        using ZipArchive zip = ZipFile.OpenRead(path);
-        XDocument container = ReadXml(zip, "META-INF/container.xml")
-            ?? throw new InvalidDataException(Localizer.Get("Epub_NoContainer"));
-        string opfPath = container.Descendants(Container + "rootfile").FirstOrDefault()?.Attribute("full-path")?.Value
-            ?? throw new InvalidDataException(Localizer.Get("Epub_NoPackage"));
-        XDocument opf = ReadXml(zip, opfPath) ?? throw new InvalidDataException(Localizer.Get("Epub_PackageMissing"));
-        XNamespace ns = opf.Root!.Name.Namespace;
-        string baseDirectory = FileHelpers.ZipDirectory(opfPath);
-
+        using EpubBookRef book = Open(path);
         LoadedContent content = new() {
             IsNativeBook = true,
-            Title = opf.Descendants(DublinCore + "title").FirstOrDefault()?.Value.Trim(),
-            Author = opf.Descendants(DublinCore + "creator").FirstOrDefault()?.Value.Trim()
+            Title = book.Title?.Trim(),
+            Author = book.AuthorList?.FirstOrDefault()?.Trim() ?? book.Author?.Trim(),
+            Language = book.Schema?.Package?.Metadata?.Languages?.FirstOrDefault()?.Language
         };
 
-        Dictionary<string, ManifestItem> manifest = [];
-        foreach (XElement item in opf.Descendants(ns + "item")) {
-            string? id = item.Attribute("id")?.Value;
-            string? href = item.Attribute("href")?.Value;
-            if ((id is null) || (href is null)) {
-                continue;
-            }
-            manifest[id] = new ManifestItem(
-                FileHelpers.ResolveZipPath(baseDirectory, href),
-                item.Attribute("media-type")?.Value ?? "",
-                item.Attribute("properties")?.Value ?? "");
-        }
-
-        Dictionary<string, string> titles = ReadTocTitles(zip, opf, ns, manifest);
+        Dictionary<string, string> titles = new(StringComparer.OrdinalIgnoreCase);
+        AddTitles(titles, book.GetNavigation());
         HtmlParser parser = new();
         Dictionary<string, string?> stylesheets = new(StringComparer.OrdinalIgnoreCase);
         Chapter? previous = null;
         int section = 0;
-        foreach (XElement itemRef in opf.Descendants(ns + "itemref")) {
-            string? idRef = itemRef.Attribute("idref")?.Value;
-            if ((idRef is null) || !manifest.TryGetValue(idRef, out ManifestItem? item)) {
-                continue;
-            }
-            ZipArchiveEntry? entry = FileHelpers.FindEntry(zip, item.Path);
-            if (entry is null) {
-                continue;
-            }
+        foreach (EpubLocalTextContentFileRef file in book.GetReadingOrder() ?? []) {
+            string filePath = file.FilePath;
             IHtmlDocument document;
-            using (Stream stream = entry.Open()) {
+            try {
+                // Parsed from bytes so that the file's own encoding declaration is honoured.
+                using MemoryStream stream = new(file.ReadContentAsBytes());
                 document = parser.ParseDocument(stream);
             }
-            string documentDirectory = FileHelpers.ZipDirectory(item.Path);
+            catch (Exception ex) when (ex is EpubReaderException or IOException or InvalidDataException) {
+                // A file the package lists but the archive lacks is skipped; the rest of the book still opens.
+                continue;
+            }
+            string documentDirectory = FileHelpers.ZipDirectory(filePath);
             (IDocument styled, StyleResolver styles) = StyledHtml.Open(
-                document, href => ReadStylesheet(zip, FileHelpers.ResolveZipPath(documentDirectory, href), stylesheets, 0));
+                document, href => ReadStylesheet(book, FileHelpers.ResolveZipPath(documentDirectory, href), stylesheets, 0));
             HtmlConverter converter = new(
                 styles,
                 source => source.Contains("://") || source.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
                     ? null
                     : FileHelpers.ZipImage(path, FileHelpers.ResolveZipPath(documentDirectory, source)),
-                item.Path,
-                href => ResolveLink(item.Path, documentDirectory, href));
+                filePath,
+                href => ResolveLink(filePath, documentDirectory, href));
             List<ContentBlock> blocks = converter.Convert(styled.Body ?? (INode)styled);
             if (blocks.Count == 0) {
                 continue;
             }
             // The file itself is a link target too: contents pages and cross-references often point at whole files.
-            blocks[0] = blocks[0] with { Anchors = [item.Path, .. blocks[0].Anchors ?? []] };
+            blocks[0] = blocks[0] with { Anchors = [filePath, .. blocks[0].Anchors ?? []] };
             section++;
-            bool listed = titles.TryGetValue(item.Path, out string? title);
+            bool listed = titles.TryGetValue(filePath, out string? title);
             if (!listed && (titles.Count > 0) && (previous is not null)) {
                 // Publishers often split one chapter over several files; only the first is in the contents.
                 previous.Blocks.AddRange(blocks);
@@ -102,6 +112,18 @@ internal static class EpubLoader {
         return content;
     }
 
+    /// <summary>Collects the contents entries, nested ones included; the first title given for a file wins.</summary>
+    private static void AddTitles(Dictionary<string, string> titles, List<EpubNavigationItemRef>? items) {
+        foreach (EpubNavigationItemRef item in items ?? []) {
+            string? file = item.Link?.ContentFilePath;
+            string title = item.Title?.Trim() ?? "";
+            if ((file is not null) && (title.Length > 0)) {
+                titles.TryAdd(file, title);
+            }
+            AddTitles(titles, item.NestedItems);
+        }
+    }
+
     /// <summary>Turns a link between files of the book into "book:path#id", matching the anchors the converter records.</summary>
     private static string? ResolveLink(string documentPath, string documentDirectory, string href) {
         if (href.Contains("://") || href.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)) {
@@ -114,71 +136,33 @@ internal static class EpubLoader {
         return $"book:{path}{((fragment.Length > 1) ? fragment : "")}";
     }
 
-    /// <summary>Reads a stylesheet from the archive, with its @import rules resolved. Cached per book.</summary>
-    private static string? ReadStylesheet(ZipArchive zip, string path, Dictionary<string, string?> cache, int depth) {
+    /// <summary>Reads a stylesheet from the book, with its @import rules resolved. Cached per book.</summary>
+    private static string? ReadStylesheet(EpubBookRef book, string path, Dictionary<string, string?> cache, int depth) {
         if (cache.TryGetValue(path, out string? cached)) {
             return cached;
         }
         cache[path] = null;
-        ZipArchiveEntry? entry = FileHelpers.FindEntry(zip, path);
-        if ((entry is null) || (depth > 3)) {
+        if (depth > 3) {
+            return null;
+        }
+        // Stylesheets declared with an unexpected media type are still in the list of all files.
+        EpubLocalContentFileRef? file = book.Content.Css.TryGetLocalFileRefByFilePath(path, out EpubLocalTextContentFileRef? sheet)
+            ? sheet
+            : book.Content.AllFiles.TryGetLocalFileRefByFilePath(path, out EpubLocalContentFileRef? any) ? any : null;
+        if (file is null) {
             return null;
         }
         string css;
-        using (StreamReader reader = new(entry.Open())) {
-            css = reader.ReadToEnd();
+        try {
+            css = file.ReadContentAsText();
+        }
+        catch (Exception ex) when (ex is EpubReaderException or IOException or InvalidDataException) {
+            return null;
         }
         string directory = FileHelpers.ZipDirectory(path);
         css = StyledHtml.InlineImports(
-            css, href => ReadStylesheet(zip, FileHelpers.ResolveZipPath(directory, href), cache, depth + 1));
+            css, href => ReadStylesheet(book, FileHelpers.ResolveZipPath(directory, href), cache, depth + 1));
         cache[path] = css;
         return css;
-    }
-
-    private static Dictionary<string, string> ReadTocTitles(
-        ZipArchive zip, XDocument opf, XNamespace ns, Dictionary<string, ManifestItem> manifest) {
-        Dictionary<string, string> titles = new(StringComparer.OrdinalIgnoreCase);
-
-        ManifestItem? nav = manifest.Values.FirstOrDefault(
-            static item => item.Properties.Split(' ').Contains("nav"));
-        if ((nav is not null) && (FileHelpers.FindEntry(zip, nav.Path) is ZipArchiveEntry navEntry)) {
-            using Stream stream = navEntry.Open();
-            IHtmlDocument document = new HtmlParser().ParseDocument(stream);
-            string directory = FileHelpers.ZipDirectory(nav.Path);
-            foreach (IElement link in document.QuerySelectorAll("nav a[href]")) {
-                string text = link.TextContent.Trim();
-                if (text.Length > 0) {
-                    titles.TryAdd(FileHelpers.ResolveZipPath(directory, link.GetAttribute("href")!), text);
-                }
-            }
-        }
-        if (titles.Count > 0) {
-            return titles;
-        }
-
-        string? ncxId = opf.Descendants(ns + "spine").FirstOrDefault()?.Attribute("toc")?.Value;
-        ManifestItem? ncx = ((ncxId is not null) && manifest.TryGetValue(ncxId, out ManifestItem? byId))
-            ? byId
-            : manifest.Values.FirstOrDefault(static item => item.MediaType == "application/x-dtbncx+xml");
-        if ((ncx is not null) && (ReadXml(zip, ncx.Path) is XDocument ncxDocument)) {
-            string directory = FileHelpers.ZipDirectory(ncx.Path);
-            foreach (XElement point in ncxDocument.Descendants(Ncx + "navPoint")) {
-                string? text = point.Element(Ncx + "navLabel")?.Element(Ncx + "text")?.Value.Trim();
-                string? source = point.Element(Ncx + "content")?.Attribute("src")?.Value;
-                if (!string.IsNullOrEmpty(text) && (source is not null)) {
-                    titles.TryAdd(FileHelpers.ResolveZipPath(directory, source), text);
-                }
-            }
-        }
-        return titles;
-    }
-
-    private static XDocument? ReadXml(ZipArchive zip, string name) {
-        ZipArchiveEntry? entry = FileHelpers.FindEntry(zip, name);
-        if (entry is null) {
-            return null;
-        }
-        using Stream stream = entry.Open();
-        return FileHelpers.LoadXml(stream);
     }
 }

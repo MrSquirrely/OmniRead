@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Media;
 
 using AngleSharp.Dom;
 
@@ -12,7 +11,7 @@ namespace OmniRead.Formats;
 /// Flattens an HTML tree into reader blocks, driven by each element's computed CSS. Shared by the HTML,
 /// Markdown and EPUB loaders. Run <see cref="CssNormalizer"/> over the result before showing it.
 /// </summary>
-internal sealed partial class HtmlConverter(StyleResolver styles, Func<string, Func<Task<ImageSource?>>?>? imageResolver = null,
+internal sealed partial class HtmlConverter(StyleResolver styles, Func<string, Func<Task<byte[]?>>?>? imageResolver = null,
     string anchorPrefix = "",
     Func<string, string?>? linkResolver = null) {
     private static readonly HashSet<string> SkipTags = [
@@ -297,7 +296,7 @@ internal sealed partial class HtmlConverter(StyleResolver styles, Func<string, F
             if (string.IsNullOrWhiteSpace(source)) {
                 continue;
             }
-            Func<Task<ImageSource?>>? loader = imageResolver?.Invoke(source);
+            Func<Task<byte[]?>>? loader = imageResolver?.Invoke(source);
             if (loader is not null) {
                 Add(output, new ImageBlock(loader));
                 _pendingSpace = 0;

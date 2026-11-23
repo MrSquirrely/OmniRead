@@ -44,12 +44,12 @@ public partial class MainWindow {
 
     /// <summary>Share of the current chapter that lies before what is on screen.</summary>
     private double ChapterShare() {
-        return Paged ? PageShare() : CurrentFraction();
+        return Paged ? PageShare() : _fraction;
     }
 
     /// <summary>The right-hand status text: page in the whole book, percentage and time left in the chapter.</summary>
     private string DescribePosition(string percent) {
-        if ((_book is null) || (_built is null)) {
+        if ((_book is null) || !_shown) {
             return "";
         }
         if (_book.FixedLayout) {
@@ -65,25 +65,22 @@ public partial class MainWindow {
             TodayLine(),
             Localizer.Format("Stats_Pace", Math.Round(pace * 60 / CharactersPerWord)));
         string timeLeft = Localizer.Format("Stats_ChapterLeft", Duration(chapterLeft / pace));
-        if (!Paged || (PageViewer.PageCount == 0)) {
+        if (!Paged || (_pages == 0)) {
             return $"{percent}  ·  {timeLeft}";
         }
 
-        if (Paginator(_built).IsPageCountValid) {
-            _pageCounts[_chapterIndex] = PageViewer.PageCount;
-        }
+        _pageCounts[_chapterIndex] = _pages;
         // Chapters not yet laid out are estimated from their length, at the pages-per-character of those that have been.
         double knownPages = _pageCounts.Values.Sum();
         double knownCharacters = _pageCounts.Keys.Sum(index => Math.Max(1, _chapterCharacters[index]));
         double pagesPerCharacter = (knownCharacters > 0) ? knownPages / knownCharacters : 0;
         int Pages(int chapter) => _pageCounts.TryGetValue(chapter, out int counted) ? counted
-            : (chapter == _chapterIndex) ? PageViewer.PageCount
             : Math.Max(1, (int)Math.Round(_chapterCharacters[chapter] * pagesPerCharacter));
         int before = Enumerable.Range(0, _chapterIndex).Sum(Pages);
         int total = Enumerable.Range(0, _book.Chapters.Count).Sum(Pages);
         bool exact = _pageCounts.Count >= _book.Chapters.Count;
         string totalText = exact ? total.ToString() : Localizer.Format("Format_Approximate", total);
-        return Localizer.Format("Status_Page", before + PageViewer.MasterPageNumber, totalText, percent) + $"  ·  {timeLeft}";
+        return Localizer.Format("Status_Page", before + _page + 1, totalText, percent) + $"  ·  {timeLeft}";
     }
 
     private string TodayLine() {

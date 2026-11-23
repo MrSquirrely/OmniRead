@@ -1,10 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
-using System.Windows.Media;
 
-using OmniRead.Rendering;
 using OmniRead.Services;
 
 namespace OmniRead;
@@ -14,8 +11,6 @@ public partial class MainWindow {
     private const int SnippetLength = 140;
 
     private List<Annotation> _annotations = [];
-
-    private TextSelection? CurrentSelection => Paged ? PageViewer.Selection : ScrollView.Selection;
 
     private void LoadAnnotations() {
         _annotations = (_book is null) ? [] : AnnotationStore.ForBook(_book.FilePath);
@@ -38,46 +33,16 @@ public partial class MainWindow {
         NotesEmpty.Visibility = (_annotations.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>The place in the text at the top of what is on screen.</summary>
-    private TextPointer? CurrentPosition() {
-        if (_built is null) {
-            return null;
-        }
-        if (Paged) {
-            DynamicDocumentPaginator paginator = Paginator(_built);
-            int page = PageViewer.MasterPageNumber - 1;
-            return (page >= 0) ? paginator.GetPagePosition(paginator.GetPage(page)) as TextPointer : null;
-        }
-        // In scrolling view character rectangles are relative to the visible area.
-        return _built.Elements
-            .OfType<TextElement>()
-            .FirstOrDefault(static element => element.ContentEnd.GetCharacterRect(LogicalDirection.Backward) is { IsEmpty: false, Bottom: > 0 })
-            ?.ContentStart;
-    }
-
-    /// <summary>Finds which source block a place in the document belongs to, and how far into it.</summary>
-    private (int Block, int Offset)? Locate(TextPointer? pointer) {
-        if ((pointer is null) || (_built is null)) {
-            return null;
-        }
-        if (pointer.Parent is FlowDocument) {
-            pointer = pointer.GetNextInsertionPosition(LogicalDirection.Forward) ?? pointer;
-        }
-        for (DependencyObject? current = pointer.Parent; current is not null; current = LogicalTreeHelper.GetParent(current)) {
-            int index = (current is TextElement element) ? _built.Elements.IndexOf(element) : -1;
-            if (index >= 0) {
-                return (index, TextPositions.OffsetOf(_built.Elements[index]!, pointer));
-            }
-        }
-        return null;
-    }
-
     private void AddBookmark() {
-        if ((_book is null) || (_built is null) || (Locate(CurrentPosition()) is not (int block, int offset))) {
+        if ((_book is null) || !_shown) {
             return;
         }
-        string text = TextPositions.TextOf(_built.Elements[block]!);
-        string snippet = text[Math.Min(offset, text.Length)..].Replace('\n', ' ').Trim();
+        // The bookmark is labelled with the words that follow it, or the chapter's name when it sits on a picture.
+        List<Models.ContentBlock> blocks = _book.Chapters[_chapterIndex].Blocks;
+        int block = Math.Clamp(_topBlock, 0, blocks.Count - 1);
+        string text = TextOf(blocks[block]) ?? "";
+        int offset = Math.Clamp(_topOffset, 0, text.Length);
+        string snippet = text[offset..].Replace('\n', ' ').Trim();
         AddAnnotation(new Annotation {
             Kind = AnnotationKind.Bookmark,
             ChapterIndex = _chapterIndex,
@@ -85,27 +50,30 @@ public partial class MainWindow {
             Offset = offset,
             EndBlockIndex = block,
             EndOffset = offset,
-            Text = Shorten(snippet)
+            Text = Shorten((snippet.Length > 0) ? snippet : _book.Chapters[_chapterIndex].Title)
         });
     }
 
     private void HighlightSelection() {
-        TextSelection? selection = CurrentSelection;
-        if ((_book is null) || (selection is null) || selection.IsEmpty
-            || (Locate(selection.Start) is not (int startBlock, int startOffset))
-            || (Locate(selection.End) is not (int endBlock, int endOffset))) {
+        if ((_book is null) || (_selection is not ReaderSelection selection)) {
             return;
         }
         AddAnnotation(new Annotation {
             Kind = AnnotationKind.Highlight,
             ChapterIndex = _chapterIndex,
-            BlockIndex = startBlock,
-            Offset = startOffset,
-            EndBlockIndex = endBlock,
-            EndOffset = endOffset,
+            BlockIndex = selection.Block,
+            Offset = selection.Start,
+            EndBlockIndex = selection.EndBlock,
+            EndOffset = selection.End,
             Text = Shorten(selection.Text.ReplaceLineEndings(" ").Trim())
         });
-        Rebuild();
+        _selection = null;
+        ShowMarkedPassages();
+    }
+
+    /// <summary>Repaints this chapter's highlights on the page; the selection is dropped so the tint can be seen.</summary>
+    private void ShowMarkedPassages() {
+        PostToReader(new Dictionary<string, object?> { ["t"] = "marked", ["list"] = MarkedPassages() });
     }
 
     private static string Shorten(string text) {
@@ -122,26 +90,6 @@ public partial class MainWindow {
         }
     }
 
-    /// <summary>Paints this chapter's highlights onto the freshly typeset document.</summary>
-    private void ApplyHighlights() {
-        if (_built is null) {
-            return;
-        }
-        Color tint = ThemeManager.Current.IsDark ? Color.FromArgb(120, 200, 150, 0) : Color.FromArgb(130, 255, 214, 64);
-        SolidColorBrush brush = new(tint);
-        brush.Freeze();
-        foreach (Annotation highlight in _annotations.Where(annotation =>
-            (annotation.Kind == AnnotationKind.Highlight) && (annotation.ChapterIndex == _chapterIndex))) {
-            if ((highlight.BlockIndex >= _built.Elements.Count) || (highlight.EndBlockIndex >= _built.Elements.Count)
-                || (_built.Elements[highlight.BlockIndex] is not TextElement first)
-                || (_built.Elements[highlight.EndBlockIndex] is not TextElement last)) {
-                continue;
-            }
-            TextRange range = new(TextPositions.PointerAt(first, highlight.Offset), TextPositions.PointerAt(last, highlight.EndOffset));
-            range.ApplyPropertyValue(TextElement.BackgroundProperty, brush);
-        }
-    }
-
     private void OnAddBookmarkClick(object sender, RoutedEventArgs e) {
         AddBookmark();
     }
@@ -154,7 +102,7 @@ public partial class MainWindow {
         if (_suppressEvents || (NotesList.SelectedItem is not Annotation annotation)) {
             return;
         }
-        ShowChapter(annotation.ChapterIndex, 0, annotation.BlockIndex, true);
+        ShowChapter(annotation.ChapterIndex, 0, annotation.BlockIndex, true, annotation.Offset);
         _suppressEvents = true;
         NotesList.SelectedItem = null;
         _suppressEvents = false;
@@ -168,7 +116,7 @@ public partial class MainWindow {
         AnnotationStore.Save();
         RefreshAnnotations();
         if ((annotation.Kind == AnnotationKind.Highlight) && (annotation.ChapterIndex == _chapterIndex)) {
-            Rebuild();
+            ShowMarkedPassages();
         }
     }
 

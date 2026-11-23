@@ -1,11 +1,9 @@
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 
 using OmniRead.Localization;
 using OmniRead.Models;
-using OmniRead.Rendering;
 using OmniRead.Services;
 
 namespace OmniRead;
@@ -36,12 +34,16 @@ public partial class MainWindow {
         _infoAction?.Invoke();
     }
 
-    /// <summary>A link that points into the book: note references open in place, anything else is followed.</summary>
-    private void OnInternalLink(InlineRun run) {
-        if ((_book is null) || (run.Href is null)) {
+    /// <summary>A link clicked on the page. Links into the book open notes in place or are followed; others go to the browser.</summary>
+    private void OnLink(string href, string linkText, bool superscript) {
+        if (!href.StartsWith("book:", StringComparison.Ordinal)) {
+            OpenExternal(href);
             return;
         }
-        string key = run.Href["book:".Length..];
+        if (_book is null) {
+            return;
+        }
+        string key = href["book:".Length..];
         if (!_book.Anchors.TryGetValue(key, out BookAnchor target)) {
             int fragment = key.IndexOf('#');
             // A link to a part of a file that could not be pinned down still leads to that file.
@@ -50,8 +52,8 @@ public partial class MainWindow {
             }
         }
         void Go() => ShowChapter(target.ChapterIndex, 0, target.BlockIndex, true);
-        string mark = run.Text.Trim();
-        bool noteReference = run.Style.HasFlag(InlineStyle.Superscript) || NoteMark().IsMatch(mark);
+        string mark = linkText.Trim();
+        bool noteReference = superscript || NoteMark().IsMatch(mark);
         string note = noteReference ? NoteText(target) : "";
         if (note.Length == 0) {
             Go();
@@ -65,11 +67,7 @@ public partial class MainWindow {
         List<ContentBlock> blocks = _book!.Chapters[target.ChapterIndex].Blocks;
         string text = "";
         for (int i = target.BlockIndex; (i < blocks.Count) && (i <= (target.BlockIndex + 1)); i++) {
-            string part = blocks[i] switch {
-                ParagraphBlock paragraph => paragraph.Text,
-                HeadingBlock heading => heading.Text,
-                _ => ""
-            };
+            string part = TextOf(blocks[i]) ?? "";
             text = (text + " " + part).Trim();
             if (text.Length > 6) {
                 break;
@@ -80,8 +78,7 @@ public partial class MainWindow {
     }
 
     private async Task LookUpSelectionAsync() {
-        TextSelection? selection = CurrentSelection;
-        string? word = (selection is { IsEmpty: false }) ? WordLookup.FirstWord(selection.Text) : null;
+        string? word = (_selection is not null) ? WordLookup.FirstWord(_selection.Text) : null;
         if (word is null) {
             return;
         }
@@ -95,7 +92,7 @@ public partial class MainWindow {
     }
 
     private void OnReaderMenuOpened(object sender, RoutedEventArgs e) {
-        bool hasSelection = CurrentSelection is { IsEmpty: false };
+        bool hasSelection = _selection is not null;
         foreach (MenuItem item in ((ContextMenu)sender).Items.OfType<MenuItem>()) {
             if (item.Tag is "selection") {
                 item.IsEnabled = hasSelection;
@@ -108,8 +105,8 @@ public partial class MainWindow {
     }
 
     private void OnMenuCopyClick(object sender, RoutedEventArgs e) {
-        if (CurrentSelection is { IsEmpty: false } selection) {
-            Clipboard.SetText(selection.Text);
+        if (_selection is not null) {
+            Clipboard.SetText(_selection.Text);
         }
     }
 

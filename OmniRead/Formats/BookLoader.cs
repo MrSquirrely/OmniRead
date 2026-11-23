@@ -89,6 +89,7 @@ public static class BookLoader {
         return new Book {
             Title = title,
             Author = content.Author,
+            Language = string.IsNullOrWhiteSpace(content.Language) ? null : content.Language.Trim(),
             FilePath = path,
             Chapters = chapters,
             Toc = BuildToc(chapters),

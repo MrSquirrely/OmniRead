@@ -1,8 +1,6 @@
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -60,33 +58,18 @@ internal static class FileHelpers {
         return (slash < 0) ? "" : entryPath[..slash];
     }
 
-    public static ImageSource? Decode(byte[] bytes) {
-        try {
-            BitmapImage image = new();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.StreamSource = new MemoryStream(bytes);
-            image.EndInit();
-            image.Freeze();
-            return image;
-        }
-        catch (Exception ex) when (ex is NotSupportedException or IOException or ArgumentException or InvalidOperationException) {
-            return null;
-        }
-    }
-
-    public static Func<Task<ImageSource?>> ZipImage(string zipPath, string entryName) {
+    public static Func<Task<byte[]?>> ZipImage(string zipPath, string entryName) {
         return () => Task.Run(() => {
             try {
                 using ZipArchive zip = ZipFile.OpenRead(zipPath);
                 ZipArchiveEntry? entry = FindEntry(zip, entryName);
                 if (entry is null) {
-                    return null;
+                    return (byte[]?)null;
                 }
                 using Stream stream = entry.Open();
                 using MemoryStream buffer = new();
                 stream.CopyTo(buffer);
-                return Decode(buffer.ToArray());
+                return buffer.ToArray();
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException) {
                 return null;
@@ -117,7 +100,7 @@ internal static class FileHelpers {
     }
 
     /// <summary>Resolves an image reference from an HTML or Markdown file on disk. Remote images are never fetched.</summary>
-    public static Func<Task<ImageSource?>>? FileImage(string baseDirectory, string source) {
+    public static Func<Task<byte[]?>>? FileImage(string baseDirectory, string source) {
         if (source.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) {
             int comma = source.IndexOf(',');
             if ((comma < 0) || !source[..comma].Contains(";base64", StringComparison.OrdinalIgnoreCase)) {
@@ -126,7 +109,7 @@ internal static class FileHelpers {
             string payload = source[(comma + 1)..];
             return () => Task.Run(() => {
                 try {
-                    return Decode(Convert.FromBase64String(payload));
+                    return (byte[]?)Convert.FromBase64String(payload);
                 }
                 catch (FormatException) {
                     return null;
@@ -152,7 +135,7 @@ internal static class FileHelpers {
         }
         return () => Task.Run(() => {
             try {
-                return Decode(File.ReadAllBytes(path));
+                return (byte[]?)File.ReadAllBytes(path);
             }
             catch (IOException) {
                 return null;

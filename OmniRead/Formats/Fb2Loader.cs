@@ -47,6 +47,7 @@ internal sealed partial class Fb2Loader {
         XElement root = document.Root ?? throw new InvalidDataException(Localizer.Get("Fb2_Empty"));
         XElement? info = Child(Child(root, "description"), "title-info");
         _content.Title = Child(info, "book-title")?.Value.Trim();
+        _content.Language = Child(info, "lang")?.Value.Trim();
         XElement? author = Child(info, "author");
         if (author is not null) {
             string name = string.Join(' ', new[] { "first-name", "middle-name", "last-name" }
@@ -141,7 +142,7 @@ internal sealed partial class Fb2Loader {
                 if ((reference is not null) && _binaries.TryGetValue(reference.TrimStart('#'), out string? base64)) {
                     Add(blocks, new ImageBlock(() => Task.Run(() => {
                         try {
-                            return FileHelpers.Decode(Convert.FromBase64String(base64));
+                            return (byte[]?)Convert.FromBase64String(base64);
                         }
                         catch (FormatException) {
                             return null;

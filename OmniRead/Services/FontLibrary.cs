@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows;
 using System.Windows.Markup;
 using System.Windows.Media;
 
@@ -13,6 +14,9 @@ public sealed record FontChoice(string Name, FontFamily Family, FontOrigin Origi
         _ => "Fonts_System"
     });
 }
+
+/// <summary>One font file of a family, with the weight and style it provides.</summary>
+public sealed record FontFace(string File, int Weight, bool Italic);
 
 /// <summary>Finds fonts from three places: the ones shipped with the app, the user's fonts folder, and Windows.</summary>
 public static class FontLibrary {
@@ -46,6 +50,31 @@ public static class FontLibrary {
             ?? fonts.FirstOrDefault(static font => font.Origin == FontOrigin.Bundled)
             ?? fonts.FirstOrDefault(static font => Same(font.Name, "Georgia"))
             ?? fonts[0];
+    }
+
+    /// <summary>
+    /// The font files behind a bundled or folder font, which the web view cannot find by name. Empty for fonts
+    /// installed in Windows, and for collections (.ttc), which a web page cannot address.
+    /// </summary>
+    public static IReadOnlyList<FontFace> Faces(FontChoice font) {
+        List<FontFace> faces = [];
+        if (font.Origin == FontOrigin.System) {
+            return faces;
+        }
+        foreach (Typeface typeface in font.Family.GetTypefaces()) {
+            if (!typeface.TryGetGlyphTypeface(out GlyphTypeface glyphs)
+                || (glyphs.StyleSimulations != StyleSimulations.None) || !glyphs.FontUri.IsFile) {
+                continue;
+            }
+            string file = glyphs.FontUri.LocalPath;
+            int weight = typeface.Weight.ToOpenTypeWeight();
+            bool italic = typeface.Style != FontStyles.Normal;
+            if (!file.EndsWith(".ttc", StringComparison.OrdinalIgnoreCase)
+                && !faces.Exists(face => (face.Weight == weight) && (face.Italic == italic))) {
+                faces.Add(new FontFace(file, weight, italic));
+            }
+        }
+        return faces;
     }
 
     private static bool Same(string a, string b) {

@@ -1,5 +1,4 @@
 using System.IO;
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +8,8 @@ using System.Xml.Linq;
 
 using OmniRead.Formats;
 using OmniRead.Localization;
+
+using VersOne.Epub;
 
 using Windows.Data.Pdf;
 using Windows.Storage;
@@ -50,8 +51,6 @@ public sealed class LibraryItem {
 public static class Library {
     private const int MaxBooks = 3000;
     private const int CoverWidth = 200;
-
-    private static readonly XNamespace DublinCore = "http://purl.org/dc/elements/1.1/";
 
     private sealed class CacheEntry {
         public long Stamp { get; set; }
@@ -194,37 +193,17 @@ public static class Library {
     }
 
     private static byte[]? ReadEpub(string path, CacheEntry entry) {
-        using ZipArchive zip = ZipFile.OpenRead(path);
-        XDocument? container = ReadXml(zip, "META-INF/container.xml");
-        string? opfPath = container?.Descendants().FirstOrDefault(static element => element.Name.LocalName == "rootfile")
-            ?.Attribute("full-path")?.Value;
-        XDocument? opf = (opfPath is null) ? null : ReadXml(zip, opfPath);
-        if ((opf?.Root is null) || (opfPath is null)) {
-            return null;
+        using EpubBookRef book = EpubLoader.Open(path);
+        entry.Title = book.Title?.Trim() ?? "";
+        entry.Author = book.AuthorList?.FirstOrDefault()?.Trim() ?? book.Author?.Trim() ?? "";
+        byte[]? cover = book.ReadCover();
+        if (cover is not null) {
+            return cover;
         }
-        entry.Title = opf.Descendants(DublinCore + "title").FirstOrDefault()?.Value.Trim() ?? "";
-        entry.Author = opf.Descendants(DublinCore + "creator").FirstOrDefault()?.Value.Trim() ?? "";
-
-        XNamespace ns = opf.Root.Name.Namespace;
-        List<XElement> manifest = [.. opf.Descendants(ns + "item")];
-        string? coverId = opf.Descendants(ns + "meta")
-            .FirstOrDefault(static meta => meta.Attribute("name")?.Value == "cover")?.Attribute("content")?.Value;
-        XElement? item = manifest.FirstOrDefault(static candidate => (candidate.Attribute("properties")?.Value ?? "").Split(' ').Contains("cover-image"))
-            ?? manifest.FirstOrDefault(candidate => (coverId is not null) && (candidate.Attribute("id")?.Value == coverId))
-            ?? manifest.FirstOrDefault(static candidate => (candidate.Attribute("media-type")?.Value ?? "").StartsWith("image/", StringComparison.Ordinal)
-                && ((candidate.Attribute("id")?.Value ?? "") + (candidate.Attribute("href")?.Value ?? "")).Contains("cover", StringComparison.OrdinalIgnoreCase));
-        string? href = item?.Attribute("href")?.Value;
-        if (href is null) {
-            return null;
-        }
-        ZipArchiveEntry? image = FileHelpers.FindEntry(zip, FileHelpers.ResolveZipPath(FileHelpers.ZipDirectory(opfPath), href));
-        if (image is null) {
-            return null;
-        }
-        using Stream stream = image.Open();
-        using MemoryStream buffer = new();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
+        // Books that do not declare a cover usually still name the image after it.
+        EpubLocalByteContentFileRef? image = book.Content.Images.Local.FirstOrDefault(
+            static candidate => candidate.FilePath.Contains("cover", StringComparison.OrdinalIgnoreCase));
+        return image?.ReadContentAsBytes();
     }
 
     private static byte[]? ReadFb2(string path, CacheEntry entry) {
@@ -272,15 +251,6 @@ public static class Library {
         using MemoryStream buffer = new();
         await managed.CopyToAsync(buffer);
         return buffer.ToArray();
-    }
-
-    private static XDocument? ReadXml(ZipArchive zip, string name) {
-        ZipArchiveEntry? entry = FileHelpers.FindEntry(zip, name);
-        if (entry is null) {
-            return null;
-        }
-        using Stream stream = entry.Open();
-        return FileHelpers.LoadXml(stream);
     }
 
     private static bool SaveThumbnail(byte[] image, string coverFile) {

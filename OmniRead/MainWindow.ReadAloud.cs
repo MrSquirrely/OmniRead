@@ -1,15 +1,14 @@
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 
 using OmniRead.Localization;
-using OmniRead.Rendering;
+using OmniRead.Models;
 using OmniRead.Services;
 
 namespace OmniRead;
 
-/// <summary>Reading the book aloud, one sentence at a time, with the spoken sentence selected on the page.</summary>
+/// <summary>Reading the book aloud, one sentence at a time, with the spoken sentence tinted on the page.</summary>
 public partial class MainWindow {
     private readonly Narrator _narrator = new();
     private bool _reading;
@@ -56,14 +55,13 @@ public partial class MainWindow {
     }
 
     private void StartReading() {
-        TextSelection? selection = CurrentSelection;
-        TextPointer? from = (selection is { IsEmpty: false }) ? selection.Start : CurrentPosition();
-        if ((_book is null) || _book.FixedLayout || (Locate(from) is not (int block, int offset))) {
+        if ((_book is null) || _book.FixedLayout || !_shown) {
             ReadToggle.IsChecked = false;
             return;
         }
-        _readBlock = block;
-        _readOffset = offset;
+        // Reading starts at the selection when there is one, otherwise at the top of what is on screen.
+        _readBlock = _selection?.Block ?? _topBlock;
+        _readOffset = _selection?.Start ?? _topOffset;
         _reading = true;
         ReadToggle.IsChecked = true;
         _ = ReadOnAsync();
@@ -74,13 +72,15 @@ public partial class MainWindow {
         _readToken++;
         _narrator.Stop();
         ReadToggle.IsChecked = false;
+        PostToReader(new Dictionary<string, object?> { ["t"] = "quiet" });
     }
 
     private async Task ReadOnAsync() {
         int token = ++_readToken;
-        while (_reading && (token == _readToken) && (_book is not null) && (_built is not null)) {
+        while (_reading && (token == _readToken) && (_book is not null) && _shown) {
             // Positions are kept as indexes, so the loop survives the chapter being typeset again mid-sentence.
-            if (_readBlock >= _built.Elements.Count) {
+            List<ContentBlock> blocks = _book.Chapters[_chapterIndex].Blocks;
+            if (_readBlock >= blocks.Count) {
                 if (_chapterIndex >= (_book.Chapters.Count - 1)) {
                     break;
                 }
@@ -91,12 +91,11 @@ public partial class MainWindow {
                 _readOffset = 0;
                 continue;
             }
-            if (_built.Elements[_readBlock] is not Paragraph paragraph) {
+            if (TextOf(blocks[_readBlock]) is not string text) {
                 _readBlock++;
                 _readOffset = 0;
                 continue;
             }
-            string text = TextPositions.TextOf(paragraph);
             Match sentence = (_readOffset < text.Length) ? Sentence().Match(text, _readOffset) : Match.Empty;
             if (!sentence.Success) {
                 _readBlock++;
@@ -107,7 +106,7 @@ public partial class MainWindow {
             if (!sentence.Value.Any(char.IsLetterOrDigit)) {
                 continue;
             }
-            ShowSpoken(paragraph, sentence.Index, sentence.Length);
+            ShowSpoken(_readBlock, sentence.Index, sentence.Length);
             bool finished;
             try {
                 finished = await _narrator.SpeakAsync(sentence.Value, _settings.SpeechVoice, _settings.SpeechRate);
@@ -129,23 +128,9 @@ public partial class MainWindow {
         }
     }
 
-    /// <summary>Selects the sentence being spoken and turns to the page it is on.</summary>
-    private void ShowSpoken(Paragraph paragraph, int start, int length) {
-        if (_built is null) {
-            return;
-        }
-        TextPointer from = TextPositions.PointerAt(paragraph, start);
-        TextPointer to = TextPositions.PointerAt(paragraph, start + length);
-        if (Paged) {
-            DynamicDocumentPaginator paginator = Paginator(_built);
-            int page = paginator.GetPageNumber(from);
-            if ((page >= 0) && ((page + 1) != PageViewer.MasterPageNumber)) {
-                PageViewer.GoToPage(page + 1);
-            }
-        }
-        else {
-            paragraph.BringIntoView();
-        }
-        CurrentSelection?.Select(from, to);
+    /// <summary>Tints the sentence being spoken and turns to the page it is on.</summary>
+    private void ShowSpoken(int block, int start, int length) {
+        PostToReader(new Dictionary<string, object?> { ["t"] = "speak", ["id"] = _showId, ["b"] = block, ["s"] = start, ["n"] = length });
     }
+
 }

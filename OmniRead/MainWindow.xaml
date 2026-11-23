@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="clr-namespace:OmniRead.Services"
         xmlns:l="clr-namespace:OmniRead.Localization"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="OmniRead" Icon="Assets/OmniRead.ico"
         Width="1280" Height="860" MinWidth="560" MinHeight="420"
         Background="{DynamicResource ChromeBrush}"
@@ -19,7 +20,8 @@
             <Separator />
             <MenuItem Header="{l:Loc Notes_AddBookmark}" InputGestureText="Ctrl+D" Click="OnAddBookmarkClick" />
             <MenuItem Header="{l:Loc Menu_ReadFromHere}" Click="OnMenuReadFromHereClick" />
-        </ContextMenu>        <l:FormatConverter x:Key="Format" />
+        </ContextMenu>
+        <l:FormatConverter x:Key="Format" />
         <Style x:Key="IconButton" TargetType="ButtonBase">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="16" />
@@ -45,30 +47,6 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Invisible strips at the page edges; the chevron fades in on hover. -->
-        <Style x:Key="EdgeButton" TargetType="Button">
-            <Setter Property="Width" Value="44" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="Transparent">
-                            <TextBlock x:Name="Glyph" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" Opacity="0"
-                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Glyph" Property="Opacity" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -224,9 +202,13 @@
             <!-- Page -->
             <Border Grid.Column="1" Margin="8,0" CornerRadius="8" Background="{DynamicResource PageBrush}"
                     BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" ClipToBounds="True">
-                <Grid x:Name="ReaderHost" SizeChanged="OnReaderSizeChanged">
+                <Grid x:Name="ReaderHost">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                     <!-- Library: shown while no book is open -->
-                    <Grid x:Name="WelcomePanel" Margin="40,28,40,0">
+                    <Grid x:Name="WelcomePanel" Grid.Row="1" Margin="40,28,40,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -309,27 +291,11 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
-                    <FlowDocumentPageViewer x:Name="PageViewer" ContextMenu="{StaticResource ReaderMenu}" IsInactiveSelectionHighlightEnabled="True" Visibility="Collapsed" Background="Transparent"
-                                            FocusVisualStyle="{x:Null}" PreviewMouseWheel="OnPagedMouseWheel">
-                        <FlowDocumentPageViewer.Template>
-                            <ControlTemplate TargetType="FlowDocumentPageViewer">
-                                <AdornerDecorator>
-                                    <DocumentPageView DocumentViewerBase.IsMasterPage="True" PageNumber="0" />
-                                </AdornerDecorator>
-                            </ControlTemplate>
-                        </FlowDocumentPageViewer.Template>
-                    </FlowDocumentPageViewer>
+                    <!-- The book itself. A web view is a window of its own: nothing drawn by WPF can sit on top of it,
+                         so the break reminder has its own row and the page-turn strips live inside the page. -->
+                    <wv2:WebView2 x:Name="Web" Grid.Row="1" Margin="3" Visibility="Collapsed" AllowExternalDrop="True" />
 
-                    <FlowDocumentScrollViewer x:Name="ScrollView" ContextMenu="{StaticResource ReaderMenu}" IsInactiveSelectionHighlightEnabled="True" Visibility="Collapsed" Background="Transparent"
-                                              FocusVisualStyle="{x:Null}" VerticalScrollBarVisibility="Auto"
-                                              PreviewMouseWheel="OnScrollMouseWheel" />
-
-                    <Button x:Name="PreviousEdge" Style="{StaticResource EdgeButton}" HorizontalAlignment="Left" Visibility="Collapsed"
-                            Content="&#xE76B;" ToolTip="{l:Loc Tip_PreviousPage}" Click="OnPreviousPageClick" />
-                    <Button x:Name="NextEdge" Style="{StaticResource EdgeButton}" HorizontalAlignment="Right" Visibility="Collapsed"
-                            Content="&#xE76C;" ToolTip="{l:Loc Tip_NextPage}" Click="OnNextPageClick" />
-
-                    <TextBlock x:Name="LoadingText" Text="{l:Loc Status_Opening}" Visibility="Collapsed" FontSize="16"
+                    <TextBlock x:Name="LoadingText" Grid.Row="1" Text="{l:Loc Status_Opening}" Visibility="Collapsed" FontSize="16"
                                HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
 
                     <!-- Card for footnotes and dictionary definitions; opens at the pointer. -->
@@ -348,8 +314,9 @@
                         </Border>
                     </Popup>
 
-                    <!-- 20-20-20 break reminder -->                    <Border x:Name="BreakBanner" Visibility="Collapsed" VerticalAlignment="Top" HorizontalAlignment="Center"
-                            Margin="16" Padding="18,14" CornerRadius="10" Background="{DynamicResource ChromeBrush}"
+                    <!-- 20-20-20 break reminder -->
+                    <Border x:Name="BreakBanner" Visibility="Collapsed" HorizontalAlignment="Center"
+                            Margin="16,12,16,8" Padding="18,14" CornerRadius="10" Background="{DynamicResource ChromeBrush}"
                             BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7B3;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
