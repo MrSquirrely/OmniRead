@@ -1,240 +1,152 @@
 # OmniRead
 
-A WPF book reader for Windows 11 (.NET 10, Windows SDK 10.0.22621).
+A native WPF book reader for Windows 11 built on .NET 10 (Windows SDK 10.0.22621).
 
     dotnet run --project OmniRead
 
-The window is WPF, with its control styles, window chrome and light and dark themes from
-[HandyControls](https://github.com/ghost1372/HandyControls); the page itself is drawn by Microsoft Edge WebView2,
-whose runtime is part of Windows 11.
+OmniRead pairs a WPF shell—styled with light and dark themes from [HandyControls](https://github.com/ghost1372/HandyControls)—with Microsoft Edge WebView2 to render the page itself, relying on the WebView2 runtime already built into Windows 11.
 
-The window is drawn on the Windows 11 Mica backdrop, light or dark to match the page; the title bar, the
-status bar and the space round the page all show it. The toolbar sits in the title bar. The cog opens the reading settings: a property grid of everything that can be
-set, grouped under the same headings as before, with the things that are done rather than set (fonts folder,
-reading history, Piper voices, audiobook export, backup and restore) as buttons beneath it. Selecting a setting
-shows a line of help under the grid where there is one. The arrow at the right of each setting puts it back to
-its default; it is faint while the setting still has that value.
+The window sits on a Windows 11 Mica backdrop that switches between light and dark to match your reading theme, showing through the title bar, status bar, and margins around the page. Controls live right in the title bar. Clicking the gear icon opens **Reading settings**, a categorized property grid of every option alongside buttons at the bottom for one-off actions like opening your fonts folder, viewing reading history, managing Piper voices, exporting audiobooks, and backing up or restoring your data. Selecting a setting displays a short description underneath when one is available, and the reset arrow on the right of each row (dimmed while at its default) reverts that option with a single click.
 
 ## How a page is drawn
 
-Every format is loaded into the same list of blocks (headings, paragraphs, pictures, tables). `Rendering/ChapterHtml`
-typesets one chapter of them as HTML with the reader's font, size and spacing, and posts it to
-`Rendering/Reader.html`, the page shown in the web view. Its script lays the chapter out in CSS columns for paged
-view (or one scrolling column), turns pages, and reports the page count, the place at the top of the screen and
-the selection back to the app. Pictures and font files are handed to the page by the app on request; the page
-loads nothing from the network, and book files never run scripts because only the app's own markup reaches it.
+Every supported format is parsed into the same unified list of blocks (headings, paragraphs, images, and tables). `Rendering/ChapterHtml` typesets one chapter at a time as HTML using your chosen font, size, and spacing, then passes it to `Rendering/Reader.html` inside the WebView2 control. A lightweight script lays the chapter out into CSS columns for paged reading (or a single continuous column for scrolling), handles page turns, and reports the page count, current scroll position, and text selection back to the app. Images and font files are served locally by the app on demand—the page never touches the network, and book files cannot execute scripts because only OmniRead's own markup ever reaches the view.
 
-The browser's profile is kept in `%LocalAppData%\OmniRead\WebView2`.
+WebView2 stores its browser profile in `%LocalAppData%\OmniRead\WebView2`.
 
-WebView2 has no hyphenation dictionaries, so words are hyphenated by OmniRead itself with the TeX hyphenation
-patterns in `OmniRead/Data/Hyphenation` (English and Spanish). The language comes from the book (EPUB and
-FictionBook say which they are in) and otherwise from the interface language; books in other languages are
-justified without hyphenation.
+Because WebView2 doesn't ship with built-in hyphenation dictionaries, OmniRead hyphenates text itself using the TeX hyphenation patterns in `OmniRead/Data/Hyphenation` (currently English and Spanish). The language is detected from the book's metadata (EPUB and FictionBook) or falls back to the interface language; books in other languages are justified without hyphenation.
 
-## Formats
+## Supported formats
 
-EPUB, FictionBook (.fb2, .fbz), PDF, Markdown, plain text, HTML, Word (.docx) and RTF.
-PDF pages are rendered with `Windows.Data.Pdf` and shown as fixed pages; everything else reflows.
+OmniRead opens EPUB, FictionBook (`.fb2`, `.fbz`), PDF, Markdown, plain text, HTML, Word (`.docx`), and RTF files. PDFs are rendered via `Windows.Data.Pdf` as fixed pages, while every other format reflows to fit your window and typography settings.
 
-EPUB packages (metadata, reading order, contents, cover) are read with VersOne.Epub; archives whose paths use
-backslashes, which some Windows tools write, are corrected on the way in.
+EPUB packages (metadata, spine order, table of contents, and cover art) are loaded using `VersOne.Epub`, automatically normalizing backslash archive paths written by certain Windows tools.
 
-EPUB and HTML stylesheets are honoured through AngleSharp.Css: emphasis, small caps, alignment, insets, extra
-spacing, relative sizes and hidden content. Each block keeps only what differs from the book's ordinary
-paragraph, so your font, size, spacing and colours always win. Floats, positioning, colours and publisher
-fonts are ignored.
+For EPUB and HTML books, stylesheets are parsed with `AngleSharp.Css` to preserve emphasis, small caps, alignment, indents, extra spacing, relative font sizes, and hidden elements. Each block keeps only the styling that differs from a standard body paragraph so your chosen font, size, spacing, and color theme always take priority—floats, absolute positioning, publisher fonts, and hardcoded colors are stripped out.
 
-**Format documents like a book** (Reading settings → Layout) applies to the non-book formats. It detects
-chapters, rejoins hard-wrapped lines, adds a title page, and sets curly quotes, dashes, scene breaks,
-first-line indents and drop caps. Turn it off to see the document as written.
+**Format documents like a book** (**Reading settings → Layout**) cleans up non-book formats like plain text, Markdown, and `.docx`. It detects chapter breaks, unwraps hard-wrapped lines, generates a title page, and applies curly quotes, proper dashes, scene breaks, first-line indents, and drop caps. Turn it off anytime to view the file exactly as written.
 
 ## Fonts
 
-The font list has three groups: fonts shipped in `OmniRead/Fonts`, fonts from your own folder
-(`%LocalAppData%\OmniRead\Fonts` — use **Open fonts folder**, copy .ttf/.otf files in, then **Reload fonts**),
-and fonts installed in Windows.
+The font picker organizes typefaces into three groups:
 
-Included fonts (all SIL Open Font License, licence text beside each): Atkinson Hyperlegible, Crimson Text,
-Gentium Book Plus, OpenDyslexic, Spectral.
+- **Bundled fonts** shipped in `OmniRead/Fonts`
+- **Custom fonts** from `%LocalAppData%\OmniRead\Fonts` (click **Open fonts folder**, drop in `.ttf` or `.otf` files, and click **Reload fonts**)
+- **System fonts** installed in Windows
+
+OmniRead includes five open-source fonts under the SIL Open Font License (each accompanied by its license file): Atkinson Hyperlegible, Crimson Text, Gentium Book Plus, OpenDyslexic, and Spectral.
 
 ## Eye comfort
 
-Eight profiles (Warm Paper, Sepia, Soft Green, Grey Mist, Dusk, Night Amber, Midnight, High Contrast), each with
-adjustable blue-light reduction and dimming, plus an optional 20-20-20 break reminder.
+Choose from eight color profiles—**Warm Paper**, **Sepia**, **Soft Green**, **Grey Mist**, **Dusk**, **Night Amber**, **Midnight**, and **High Contrast**—each with adjustable blue-light filtering and screen dimming, plus an optional 20-20-20 break reminder.
 
 ## Library
 
-With no book open, OmniRead shows shelves of covers. **Library folders** adds one or more folders (you can pick
-several at once) and removes them again; each folder becomes a shelf labelled with the folder's name, holding every
-supported book in it and its subfolders. Two folders with the same name are told apart by their parent folder, and a
-folder inside another listed folder gets its own shelf. With no folders it shows recently opened books. Sort by last
-read, title or author. The row under the heading narrows the shelves: type part of a title or author (Ctrl+F puts
-the cursor there), pick a format, or show only unread, in-progress or finished books. A book counts as finished
-once its last page has been reached. Click a book to open it; right-click for a menu (open, show in folder, copy path, forget
-reading progress). Titles, authors and covers are read from EPUB and FB2 files, PDFs show their first page, and other
-formats show a title card. What is found is cached in `%LocalAppData%\OmniRead` (`library.json` and `Covers`).
+When no book is open, OmniRead displays your library as shelves of book covers:
 
-**Collections** are shelves you make yourself; a book can be in any number of them and stays in its folder.
-Right-click a book → **Collections** to tick the ones it belongs to or make a new one. Collections stand above the
-folder shelves, marked with a tag; right-click a collection's heading to rename or delete it.
-
-**Edit details…** in the same menu corrects a book's title and author and lets you choose a cover picture, for
-books whose files carry none or get them wrong. The corrections are kept by OmniRead (the book file is not
-changed) and can be undone with **Reset to the file's details**. Chosen covers are stored in
-`%LocalAppData%\OmniRead\CustomCovers`.
+- **Library folders:** Add one or more folders at once (or remove them later). Each folder—along with any nested subfolder—gets its own shelf named after the folder, containing every supported book inside it. Folders sharing the same name are disambiguated using their parent folder's name. If you haven't added any folders yet, OmniRead shows your recently opened books instead.
+- **Sorting and filtering:** Sort shelves by last read, title, or author. Use the filter bar below the header (press `Ctrl+F` to jump straight to it) to search by title or author, filter by file format, or narrow down to unread, in-progress, or finished books (a book is marked finished once you reach its final page).
+- **Book actions and caching:** Click any cover to start reading, or right-click for quick actions (**Open**, **Show in folder**, **Copy path**, and **Forget reading progress**). Titles, authors, and covers are extracted from EPUB and FB2 metadata, PDFs display a thumbnail of their first page, and other formats get a generated title card. Everything discovered during scans is cached in `%LocalAppData%\OmniRead` (`library.json` and `Covers`).
+- **Collections:** Create custom shelves that appear above your folder shelves with a tag icon. Right-click a book and choose **Collections** to assign it to one or more collections (without moving the file on disk) or create a new one. Right-click any collection header to rename or delete it.
+- **Edit details…:** Fix missing or incorrect titles, authors, and cover art via the book's context menu without altering the underlying file. Custom covers are saved in `%LocalAppData%\OmniRead\CustomCovers`, and you can revert your edits anytime with **Reset to the file's details**.
 
 ## Bookmarks and highlights
 
-Ctrl+D bookmarks the top of the page; select text and press Ctrl+H to highlight it. Both are listed in the
-bookmarks panel (Ctrl+B), where each can carry a note, and are saved per book in `annotations.json`. Places are
-stored as a paragraph plus a character offset, so they survive font and window changes, but not switching
-**Format documents like a book** on or off.
+Press `Ctrl+D` to bookmark the top of the current page, or select text and press `Ctrl+H` to highlight it. Both live in the bookmarks panel (`Ctrl+B`), where you can attach notes to any entry. Annotations are saved per book in `annotations.json` using paragraph and character offsets, so they stay aligned across window resizes and font changes (though toggling **Format documents like a book** changes paragraph structure and invalidates existing offsets).
 
-**Export…** in the same panel saves the book's bookmarks, highlights and notes as Markdown or plain text, grouped
-by chapter in reading order. Highlights are written out in full, read back from the book.
+Click **Export…** in the bookmarks panel to save a book's bookmarks, full highlight passages, and notes as Markdown or plain text, organized by chapter in reading order.
 
 ## Read aloud
 
-Ctrl+R (or the speaker button) reads from the top of the page, or from selected text, using the Windows voices
-(`Windows.Media.SpeechSynthesis`). The sentence being spoken is tinted and pages turn to follow it. Voice and
-speed are under Reading settings. PDFs cannot be read aloud because their pages are images.
+Press `Ctrl+R` (or click the speaker icon) to have OmniRead read aloud from the top of the page—or from your current text selection—using Windows voices (`Windows.Media.SpeechSynthesis`). The active sentence is highlighted as it's spoken, and pages turn automatically to keep up. Voice and playback speed are configured in **Reading settings**. (PDFs cannot be read aloud since their pages are rendered as images.)
 
-While it reads, four more buttons appear beside the speaker: previous sentence (Ctrl+↑), pause or resume (Ctrl+P),
-next sentence (Ctrl+↓) and a sleep timer. The timer stops the reading after 15, 30, 45 or 60 minutes, letting the
-sentence being spoken finish, or at the end of the chapter. "Previous sentence" does not go back past the start of
-the chapter.
+While reading aloud, four extra controls appear next to the speaker button: **Previous sentence** (`Ctrl+↑`, which stops at the start of the current chapter), **Pause / Resume** (`Ctrl+P`), **Next sentence** (`Ctrl+↓`), and a **Sleep timer** that stops playback after 15, 30, 45, or 60 minutes (after finishing the current sentence) or at the end of the chapter.
 
-**Export as audiobook…** (Reading settings → Read aloud) reads the current chapter or the whole book into audio
-files with the chosen voice and speed, one file per chapter, numbered in reading order. Files are M4A (AAC, encoded
-by Windows) or uncompressed WAV. The export runs in the background, so you can keep reading; closing its window
-cancels it and keeps the chapters already finished. A long book takes a while, and with a Piper voice the same
-engine serves both the export and read aloud, one sentence at a time.
+**Export as audiobook…** (a button at the bottom of **Reading settings**) renders either the current chapter or the entire book to audio files using your selected voice and speed, outputting one numbered file per chapter in reading order as M4A (AAC encoded via Windows) or uncompressed WAV. Exports run in the background so you can keep reading; closing the progress window cancels it while keeping any chapters already finished. Longer books take time, and if you use a Piper voice, the same engine powers both live read-aloud and audiobook export one sentence at a time.
 
 ## Focus mode
 
-Focus mode (Ctrl+M, or the tick box under Layout) dims everything except one paragraph. In scrolling view that is
-the paragraph crossing a line two fifths of the way down the window; in pages view it is the first on the page, and
-↑ and ↓ move it to the previous or next paragraph, turning the page when needed. Clicking a paragraph lights it, and
-read aloud lights the paragraph it is speaking.
+Focus mode (`Ctrl+M`, or the switch under **Layout**) dims the rest of the page so a single paragraph stands out. In scrolling view, it tracks whichever paragraph crosses roughly two-fifths of the way down the window; in paged view, it starts on the first paragraph of the page and lets you step backward or forward with `↑` and `↓`, turning pages automatically as needed. Clicking any paragraph brings it into focus, and Read Aloud highlights each paragraph as it speaks.
 
-## Search, dictionary and footnotes
+## Search, dictionary, and footnotes
 
-Ctrl+F searches the whole book and lists every match with its chapter; picking one goes to the page and tints
-the match. Select a word and press Ctrl+K (or right-click it) to see its definition.
-The dictionary is built in and works offline: `OmniRead/Data/dictionary.txt.gz` holds about 147,000 English words
-from WordNet 3.1 (Princeton University; licence in `Data/WORDNET-LICENSE.txt`), and plurals and other inflected forms
-are traced back to their dictionary form. `tools/BuildDictionary.cs` rebuilds the file from the WordNet database.
-A footnote reference in an EPUB, HTML or Markdown file opens the note in a small card instead of leaving the page;
-other links inside a book are followed. This works for EPUB, FictionBook, HTML and Markdown.
+Press `Ctrl+F` to search across the entire book and browse matches grouped by chapter; selecting a result jumps straight to that page and highlights the match. To look up a word, select it and press `Ctrl+K` (or right-click it). The offline dictionary (`OmniRead/Data/dictionary.txt.gz`) packs roughly 147,000 English entries from WordNet 3.1 (Princeton University; license in `Data/WORDNET-LICENSE.txt`) and automatically resolves plurals and inflected forms back to their base headwords. You can rebuild the dictionary file from WordNet using `tools/BuildDictionary.cs`.
+
+Clicking a footnote reference in an EPUB, HTML, or Markdown book opens the note in a compact popup card so you don't lose your place, while standard internal links jump directly to their destination across EPUB, FictionBook, HTML, and Markdown files.
 
 ## Page numbers and reading time
 
-Pages are numbered through the whole book, and the status bar shows the page being read out of the total. Type
-a number in the page box and press Enter (or press Ctrl+G first) to go to that page.
+Pages are numbered continuously across the entire book and displayed in the status bar. Click the page box (or press `Ctrl+G`), type a page number, and press `Enter` to jump directly there.
 
-The numbers come from a page map made in the background whenever a book is opened or the window, font, size or
-line spacing changes. `BookPaginator` sets every chapter line by line, with the reading font's own character
-widths and the margins the page stylesheet uses, and records where each page begins: the chapter, the block in
-it, and the character when a page starts part-way through a paragraph. Every block on the page carries a matching
-id (`reader-ch-{chapter}-blk-{block}`), so a page start can be shown directly. The map is an estimate of what
-the web view will draw, not a copy of it: pictures are given a nominal height and hyphenation is not modelled. In
-pages view the reader therefore counts the pages actually drawn within the chapter from the chapter's first page
-number, so each turn of the page is one page; in scrolling view a page is one window-height of text and the
-number changes as each page start is passed. Changing the size or the window keeps your place and renumbers
-around it.
+Whenever you open a book—or change the window size, font, text size, or line spacing—`BookPaginator` builds a background page map. It measures every chapter line by line using your reading font's actual character widths and page margins, recording where each page starts by chapter, block ID (`reader-ch-{chapter}-blk-{block}`), and character offset. Because images use estimated heights and hyphenation isn't modeled during the background pass, paged view counts the actual pages rendered within each chapter starting from that chapter's mapped first page, ensuring one page turn always equals one page number. In scrolling view, one window height counts as a page and updates as you scroll past page boundaries. Resizing the window or changing typography keeps your place and recalculates page numbers around it.
 
-The status bar also shows the time left in the chapter, based on your
-own pace once two minutes of reading have been measured (250 words a minute before that). Hover over it for the
-time left in the book, today's reading time and your pace.
+The status bar also estimates the time remaining in the current chapter, starting at 250 words per minute and adapting to your real reading pace once you've read for at least two minutes. Hover over it to see the time left in the entire book, your reading time today, and your average pace.
 
 ## Reading goal and history
 
-Reading settings → **Reading goal** sets a number of minutes to read each day (0 for none). With a goal set, the
-status bar's tooltip shows today's reading against it and how many days in a row it has been met; the count keeps
-running from yesterday until today's reading reaches the goal. **Reading history…** opens a chart of the time read
-on each of the last thirty days with the goal drawn across it, beside today's time, the streak, and the totals for
-the thirty days and for all time. Up to 400 days of daily times are kept.
+Set a daily reading target in minutes under **Reading settings → Reading goal** (`0` turns goals off). When a goal is active, the status bar tooltip tracks today's progress and your daily streak—carrying yesterday's streak forward until you hit today's target. Click **Reading history…** to view a 30-day bar chart with your goal line overlaid, alongside today's reading time, your current streak, and your 30-day and all-time totals. OmniRead retains up to 400 days of daily reading logs.
 
 ## Backup and restore
 
-Reading settings → **Backup** saves what OmniRead remembers as one `.omnibackup` file (a zip): settings, library
-folders, collections, reading positions, statistics, bookmarks, highlights, notes, corrected book details with
-their chosen covers, and the fonts in your own fonts folder. It does
-not hold the books themselves, the cover cache (rebuilt on the next scan) or Piper and its voices.
+**Back up…** (a button at the bottom of **Reading settings**) bundles everything OmniRead tracks into a single `.omnibackup` zip archive: settings, library folders, collections, reading positions, statistics, bookmarks, highlights, notes, edited book details and custom covers, and any fonts in your personal fonts folder. It excludes the book files themselves, the generated cover cache (which rebuilds automatically on the next scan), and Piper voices.
 
-**Restore…** replaces the current state with a backup and restarts OmniRead; the two files it replaces are kept
-beside the new ones as `settings.json.bak` and `annotations.json.bak`. Books are recognised by their full path, so
-positions and highlights follow a book only if it sits at the same path as before. Paths under your user folder are
-moved to the new user folder when the backup comes from a different user name; books elsewhere must be on the same
-drive and folder.
+**Restore…** loads a backup and restarts OmniRead, preserving the files it replaces as `settings.json.bak` and `annotations.json.bak`. Because books are matched by full file path, positions and annotations reconnect automatically if your books remain in the same locations. Paths inside your Windows user folder are automatically remapped to the current user's profile when restoring onto a different account or PC, while books stored elsewhere need to stay on the same drive and folder path.
 
 ## Piper voices
 
-Besides the Windows voices, read aloud can use [Piper](https://github.com/OHF-Voice/piper1-gpl), a neural speech engine
-that runs on this computer. Reading settings → **Piper voices…** installs it and downloads voices.
+Alongside standard Windows voices, OmniRead supports [Piper](https://github.com/OHF-Voice/piper1-gpl), an offline neural text-to-speech engine that runs locally on your machine. Open **Reading settings → Piper voices…** to install it and download voice models:
 
-- Piper is GPL-3.0-or-later and is not part of OmniRead. The reader downloads the official `piper-tts` package,
-  with its own copy of Python, into `%LocalAppData%\OmniRead\Piper` (about 190 MB) and runs it as a separate
-  program. The small bridge script it writes there is under Piper's licence.
-- Every Piper voice is offered: 183 voices, in a section per language and from the lowest quality to the highest.
-  Each shows the licence its `MODEL_CARD` gives and, where the card names one, the stricter terms of the voice it
-  was trained from. Only 64 are public domain or CC0; many of the rest are non-commercial, research-only or require
-  credit, and 30 only point to a URL for their licence. Check before using a voice for more than your own reading.
-- Each voice's `MODEL_CARD` is downloaded and kept beside the voice.
-- **Uninstall Piper** in the same window removes the engine and its Python, and the voices too if you choose.
-- Installing Piper and downloading voices are the only things in OmniRead that use the network, and only when asked.
+- Piper is licensed under GPL-3.0-or-later and is not bundled with OmniRead. When you install it, OmniRead downloads the official `piper-tts` package along with its own standalone Python environment into `%LocalAppData%\OmniRead\Piper` (about 190 MB) and runs it as a separate process via a small GPL-licensed bridge script.
+- All 183 Piper voices are available, grouped by language and ordered from lowest to highest quality. Each entry displays the license from its `MODEL_CARD`—as well as any stricter terms inherited from its training dataset. Only 64 voices are public domain or CC0; many others are non-commercial, research-only, or require attribution, and 30 only link to a license URL, so be sure to check the terms before using a voice outside personal reading.
+- Every downloaded voice keeps its `MODEL_CARD` file saved right beside it.
+- Click **Uninstall Piper** in the same window at any time to remove the engine, its Python runtime, and—optionally—your downloaded voices.
+- Installing Piper and downloading voices are the *only* actions in OmniRead that ever use the internet, and only when you explicitly ask for them.
 
-## Keys
+## Keyboard shortcuts
 
-| Key | Action |
+| Shortcut | Action |
 |---|---|
-| Ctrl+O | Open |
-| ← → / PgUp PgDn / Space | Turn page |
-| Ctrl+← Ctrl+→ | Previous / next chapter |
-| Ctrl+T, Ctrl+, | Contents, reading settings |
-| Ctrl+E | Eye comfort mode |
-| Ctrl+L | Back to the library |
-| Ctrl+D, Ctrl+H | Bookmark this page, highlight the selection |
-| Ctrl+B | Bookmarks and highlights |
-| Ctrl+R | Read aloud on / off |
-| Ctrl+P, Ctrl+↑ Ctrl+↓ | While reading aloud: pause or resume, previous / next sentence |
-| Ctrl+F | Search in book (in the library: search the shelves) |
-| Ctrl+M | Focus mode on / off; ↑ ↓ move the lit paragraph in pages view |
-| Ctrl+K | Look up the selected word |
-| Ctrl+G | Go to page |
-| Ctrl + / − / wheel | Text size |
-| F11 | Full screen |
+| `Ctrl+O` | Open file |
+| `←` `→` / `PgUp` `PgDn` / `Space` | Turn page |
+| `Ctrl+←` / `Ctrl+→` | Previous / next chapter |
+| `Ctrl+T` / `Ctrl+,` | Table of contents / Reading settings |
+| `Ctrl+E` | Toggle Eye comfort mode |
+| `Ctrl+L` | Return to library |
+| `Ctrl+D` / `Ctrl+H` | Bookmark current page / Highlight selection |
+| `Ctrl+B` | Open bookmarks and highlights |
+| `Ctrl+R` | Start or stop Read aloud |
+| `Ctrl+P` / `Ctrl+↑` / `Ctrl+↓` | Pause or resume / Previous or next sentence (while reading aloud) |
+| `Ctrl+F` | Search in book (or filter shelves in the library) |
+| `Ctrl+M` | Toggle Focus mode (`↑` / `↓` moves focus in paged view) |
+| `Ctrl+K` | Look up selected word |
+| `Ctrl+G` | Go to page |
+| `Ctrl` + `+` / `−` / mouse wheel | Adjust text size |
+| `F11` | Toggle full screen |
 
 ## Languages
 
-Interface text lives in `OmniRead/Resources/Strings.resx` (English) with translations beside it
-(`Strings.es.resx` for Spanish). To add a language, copy `Strings.resx` to `Strings.<culture>.resx`, translate
-the values and add the language to `Localizer.Languages`. The language is chosen under Reading settings →
-Appearance and applies after a restart. In XAML use `{l:Loc Some_Key}`; in code `Localizer.Get("Some_Key")`.
+UI strings live in `OmniRead/Resources/Strings.resx` (English) alongside translations such as `Strings.es.resx` (Spanish). To add another language, copy `Strings.resx` to `Strings.<culture>.resx`, translate the string values, and register the locale in `Localizer.Languages`. Users can switch languages under **Reading settings → Appearance** (applied after a restart). Use `{l:Loc Some_Key}` in XAML and `Localizer.Get("Some_Key")` in C#.
 
 ## Building a release
 
     dotnet publish OmniRead -p:PublishProfile=SingleFile
 
-writes a single self-contained `release\OmniRead.exe` for 64-bit Windows 11. Fonts, the dictionary and the
-hyphenation patterns are inside it; on first run it unpacks itself to a folder under `%TEMP%\.net`. The WebView2
-runtime is not inside it: Windows 11 already has it.
+This produces a self-contained single-file executable at `release\OmniRead.exe` for 64-bit Windows 11. Bundled fonts, the dictionary, and hyphenation patterns are embedded inside and unpack to `%TEMP%\.net` on first launch. The WebView2 runtime is not bundled, as Windows 11 includes it out of the box.
 
 ## Tests
 
     dotnet test OmniRead.Tests
 
-runs the unit tests of the page map.
+Runs the unit test suite for the background page mapper.
 
-## Licence
+## License
 
-OmniRead is free software under the GNU General Public License, version 3 or (at your option) any later version;
-see `LICENSE`. It comes with no warranty.
+OmniRead is free software licensed under the GNU General Public License, version 3 or (at your option) any later version—see `LICENSE` for details. It is provided with no warranty.
 
-Bundled material keeps its own licence: the fonts in `OmniRead/Fonts` are under the SIL Open Font License (text
-beside each), the dictionary data is from WordNet 3.1 (`OmniRead/Data/WORDNET-LICENSE.txt`), and the hyphenation
-patterns in `OmniRead/Data/Hyphenation` are the unmodified files of the TeX hyph-utf8 project, each with its
-licence at the top (American English: Gerard Kuiken's permissive notice, including Knuth's `hyphen.tex` tables;
-Spanish: MIT). The libraries AngleSharp, AngleSharp.Css (MIT), Markdig (BSD 2-Clause), VersOne.Epub (Unlicense),
-HandyControls (MIT) and the Microsoft WebView2 SDK (BSD-style) are fetched from NuGet. Piper and its voices are not part of OmniRead and
-are downloaded separately under their own terms.
+Third-party components retain their respective licenses:
+
+- **Bundled fonts** (`OmniRead/Fonts`): SIL Open Font License (license files included alongside each font)
+- **Dictionary data**: WordNet 3.1 (`OmniRead/Data/WORDNET-LICENSE.txt`)
+- **Hyphenation patterns** (`OmniRead/Data/Hyphenation`): Unmodified files from the TeX `hyph-utf8` project with original headers intact (American English under Gerard Kuiken's permissive notice, incorporating Knuth's `hyphen.tex` tables; Spanish under the MIT License)
+- **NuGet packages**: AngleSharp and AngleSharp.Css (MIT), Markdig (BSD 2-Clause), VersOne.Epub (Unlicense), HandyControls (MIT), and the Microsoft WebView2 SDK (BSD-style)
+- **Piper & voice models**: Not bundled with OmniRead; downloaded separately under their own respective licenses
