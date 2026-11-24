@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 
@@ -11,7 +12,7 @@ using MessageBox = HandyControl.Controls.MessageBox;
 namespace OmniRead;
 
 /// <summary>
-/// Corrects a book's title, author and cover as the library shows them. The book file is never changed: the
+/// Corrects a book's title, author, cover and place in its series as the library shows them. The book file is never changed: the
 /// corrections are kept with the settings.
 /// </summary>
 public partial class BookDetailsWindow : HandyControl.Controls.Window {
@@ -22,6 +23,7 @@ public partial class BookDetailsWindow : HandyControl.Controls.Window {
         InitializeComponent();
         TitleBox.Text = book.Title;
         AuthorBox.Text = book.Author;
+        SeriesBox.Text = book.SeriesNumber?.ToString(CultureInfo.CurrentCulture) ?? "";
         PathText.Text = book.Path;
         _shownCover = book.Cover;
         _cover = current?.Cover;
@@ -67,7 +69,20 @@ public partial class BookDetailsWindow : HandyControl.Controls.Window {
     }
 
     private void OnAcceptClick(object sender, RoutedEventArgs e) {
-        Result = new BookOverride { Title = TitleBox.Text.Trim(), Author = AuthorBox.Text.Trim(), Cover = _cover };
+        string series = SeriesBox.Text.Trim();
+        double number = 0;
+        if ((series.Length > 0) && !double.TryParse(series, NumberStyles.Float, CultureInfo.CurrentCulture, out number)) {
+            MessageBox.Show(this, Localizer.Get("Details_BadSeries"), "OmniRead", MessageBoxButton.OK, MessageBoxImage.Warning);
+            SeriesBox.Focus();
+            SeriesBox.SelectAll();
+            return;
+        }
+        Result = new BookOverride {
+            Title = TitleBox.Text.Trim(),
+            Author = AuthorBox.Text.Trim(),
+            Cover = _cover,
+            SeriesNumber = (series.Length > 0) ? number : null
+        };
         DialogResult = true;
     }
 }

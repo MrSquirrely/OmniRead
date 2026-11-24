@@ -25,8 +25,11 @@ public enum ReadState {
     Finished
 }
 
-/// <summary>A shelf heading: a library folder, or a collection the reader made.</summary>
-public sealed record ShelfGroup(string Name, int Index, bool IsCollection);
+/// <summary>
+/// A shelf heading: a folder of books, or a collection the reader made. The key names the shelf in the saved order
+/// of the shelves, and the index is its place before the reader rearranges anything.
+/// </summary>
+public sealed record ShelfGroup(string Key, string Name, int Index, bool IsCollection);
 
 /// <summary>One book on the library shelf.</summary>
 public sealed class LibraryItem {
@@ -38,6 +41,9 @@ public sealed class LibraryItem {
 
     public ImageSource? Cover { get; init; }
 
+    /// <summary>The book's place in its series, when the reader has given it one.</summary>
+    public double? SeriesNumber { get; init; }
+
     public DateTime? LastOpened { get; init; }
 
     public double Progress { get; init; }
@@ -47,23 +53,39 @@ public sealed class LibraryItem {
 
     public ReadState State => Finished ? ReadState.Finished : (LastOpened is null) ? ReadState.Unread : ReadState.Reading;
 
-    /// <summary>Label of the shelf the book is on: the name of its library folder.</summary>
+    /// <summary>Label of the shelf the book is on: its library folder, followed by the subfolders down to the book's own.</summary>
     public string Shelf { get; init; } = "";
 
-    /// <summary>Position of the shelf, in the order the folders were added. Collections come first, with negative positions.</summary>
+    /// <summary>What the shelf is remembered by when the reader rearranges the shelves.</summary>
+    public string ShelfKey { get; init; } = "";
+
+    /// <summary>
+    /// Position of the shelf before the reader rearranges anything: library folders in the order they were added,
+    /// each followed by its subfolders. Collections come first, with negative positions.
+    /// </summary>
     public int ShelfIndex { get; init; }
 
     /// <summary>True when this entry stands on a collection's shelf rather than a folder's.</summary>
     public bool IsCollection { get; init; }
 
     /// <summary>What the shelves are grouped by; a collection and a folder of the same name stay apart.</summary>
-    public ShelfGroup Group => field ??= new ShelfGroup(Shelf, ShelfIndex, IsCollection);
+    public ShelfGroup Group => field ??= new ShelfGroup(ShelfKey, Shelf, ShelfIndex, IsCollection);
 
     public string Format => System.IO.Path.GetExtension(Path).TrimStart('.').ToUpperInvariant();
 
-    public string Subtitle => (Author.Length > 0) ? Author
-        : (LastOpened is not null) ? Localizer.Format("Format_Percent", Progress)
-        : "";
+    /// <summary>The line under the title: the book's number in its series, then its author (or how far it has been read).</summary>
+    public string Subtitle {
+        get {
+            string detail = (Author.Length > 0) ? Author
+                : (LastOpened is not null) ? Localizer.Format("Format_Percent", Progress)
+                : "";
+            if (SeriesNumber is not double number) {
+                return detail;
+            }
+            string series = Localizer.Format("Library_SeriesNumber", number);
+            return (detail.Length > 0) ? $"{series} · {detail}" : series;
+        }
+    }
 }
 
 /// <summary>
@@ -108,34 +130,40 @@ public static class Library {
     private static string CachePath => System.IO.Path.Combine(SettingsStore.DataFolder, "library.json");
 
     /// <summary>
-    /// Lists the books in each of <paramref name="folders"/> (including subfolders) as one shelf per folder, or
-    /// the recently opened books when no folder is set. Safe to call from a background thread; the covers it
-    /// returns are frozen.
+    /// Lists the books in each of <paramref name="folders"/>, with one shelf for the folder and one for each
+    /// subfolder that holds books, or the recently opened books when no folder is set. Safe to call from a
+    /// background thread; the covers it returns are frozen.
     /// </summary>
     public static async Task<List<LibraryItem>> ScanAsync(
         IReadOnlyList<string> folders,
         IReadOnlyList<RecentBook> recent,
         IReadOnlyList<BookCollection> collections,
         IReadOnlyDictionary<string, BookOverride> overrides) {
-        List<(string Path, string Shelf, int ShelfIndex, bool Collection)> found = [];
+        List<(string Path, string Key, string Shelf, int ShelfIndex, bool Collection)> found = [];
         // Collections stand before the folder shelves, in the order they were made.
         for (int i = 0; i < collections.Count; i++) {
-            found.AddRange(collections[i].Paths.Where(File.Exists).Select(path => (path, collections[i].Name, i - collections.Count, true)));
+            string key = CollectionKey(collections[i].Name);
+            found.AddRange(collections[i].Paths.Where(File.Exists).Select(path => (path, key, collections[i].Name, i - collections.Count, true)));
         }
         List<string> existing = [.. folders.Where(Directory.Exists)];
         if (existing.Count > 0) {
             IReadOnlyList<string> labels = ShelfLabels(existing);
             HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+            List<(string Path, string Directory)> books = [];
+            // The library folder each folder of books was found under.
+            Dictionary<string, int> roots = new(StringComparer.OrdinalIgnoreCase);
             EnumerationOptions options = new() { RecurseSubdirectories = true, IgnoreInaccessible = true };
             // Longest paths first: a book in a folder that sits inside another listed folder goes on the inner one's shelf.
             foreach (int index in Enumerable.Range(0, existing.Count).OrderByDescending(index => existing[index].Length)) {
                 try {
                     foreach (string path in Directory.EnumerateFiles(existing[index], "*", options).Where(BookLoader.IsSupported)) {
-                        if (found.Count >= MaxBooks) {
+                        if ((found.Count + books.Count) >= MaxBooks) {
                             break;
                         }
                         if (seen.Add(path)) {
-                            found.Add((path, labels[index], index, false));
+                            string directory = System.IO.Path.GetDirectoryName(path) ?? existing[index];
+                            books.Add((path, directory));
+                            roots.TryAdd(directory, index);
                         }
                     }
                 }
@@ -143,10 +171,21 @@ public static class Library {
                     // An unreadable folder simply shows no shelf.
                 }
             }
+            // Every folder that holds books is a shelf of its own: the library folder first, then its subfolders by name.
+            Dictionary<string, (string Label, int Index)> shelves = new(StringComparer.OrdinalIgnoreCase);
+            foreach ((string directory, int root, string relative) in roots
+                .Select(pair => (Directory: pair.Key, Root: pair.Value, Relative: Relative(existing[pair.Value], pair.Key)))
+                .OrderBy(static shelf => shelf.Root)
+                .ThenBy(static shelf => shelf.Relative, StringComparer.OrdinalIgnoreCase)) {
+                string[] parts = relative.Split([System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar],
+                    StringSplitOptions.RemoveEmptyEntries);
+                shelves[directory] = (string.Join(" - ", [labels[root], .. parts]), shelves.Count);
+            }
+            found.AddRange(books.Select(book => (book.Path, FolderKey(book.Directory), shelves[book.Directory].Label, shelves[book.Directory].Index, false)));
         }
         else {
             string shelf = Localizer.Get("Library_Shelf_Recent");
-            found.AddRange(recent.Select(static book => book.Path).Where(File.Exists).Select(path => (path, shelf, 0, false)));
+            found.AddRange(recent.Select(static book => book.Path).Where(File.Exists).Select(path => (path, "R|", shelf, 0, false)));
         }
 
         Dictionary<string, CacheEntry> cache = LoadCache();
@@ -155,7 +194,7 @@ public static class Library {
             .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.OrdinalIgnoreCase);
         List<LibraryItem> items = [];
         bool cacheChanged = false;
-        foreach ((string path, string shelfName, int shelfIndex, bool collection) in found) {
+        foreach ((string path, string shelfKey, string shelfName, int shelfIndex, bool collection) in found) {
             overrides.TryGetValue(path, out BookOverride? custom);
             history.TryGetValue(path, out RecentBook? read);
             FileInfo file = new(path);
@@ -175,10 +214,12 @@ public static class Library {
                     : System.IO.Path.GetFileNameWithoutExtension(path),
                 Author = !string.IsNullOrWhiteSpace(custom?.Author) ? custom.Author : entry.Author,
                 Cover = LoadCustomCover(custom?.Cover) ?? (entry.HasCover ? LoadImage(coverFile) : null),
+                SeriesNumber = custom?.SeriesNumber,
                 LastOpened = read?.LastOpened,
                 Progress = read?.Progress ?? 0,
                 Finished = read?.Finished ?? false,
                 Shelf = shelfName,
+                ShelfKey = shelfKey,
                 ShelfIndex = shelfIndex,
                 IsCollection = collection
             });
@@ -187,6 +228,43 @@ public static class Library {
             SaveCache(cache);
         }
         return items;
+    }
+
+    /// <summary>The key of a collection's shelf in the saved order of the shelves.</summary>
+    public static string CollectionKey(string name) {
+        return "C|" + name;
+    }
+
+    /// <summary>The key of a folder's shelf in the saved order of the shelves.</summary>
+    public static string FolderKey(string folder) {
+        return "F|" + folder;
+    }
+
+    /// <summary>The path from a library folder down to one of its subfolders; empty for the library folder itself.</summary>
+    private static string Relative(string root, string directory) {
+        string relative = System.IO.Path.GetRelativePath(root, directory);
+        return (relative == ".") ? "" : relative;
+    }
+
+    /// <summary>
+    /// The keys of the shelves in the order they are shown: the order the reader arranged them in, with shelves
+    /// that order does not know (a new subfolder, say) placed after the shelf they would otherwise follow.
+    /// </summary>
+    public static List<string> ShelfOrder(IEnumerable<LibraryItem> items, IReadOnlyList<string> saved) {
+        StringComparer comparer = StringComparer.OrdinalIgnoreCase;
+        List<string> natural = [.. items.Select(static item => item.Group).Distinct()
+            .OrderBy(static shelf => shelf.Index).Select(static shelf => shelf.Key).Distinct(comparer)];
+        HashSet<string> present = new(natural, comparer);
+        List<string> order = [.. saved.Where(present.Contains).Distinct(comparer)];
+        HashSet<string> placed = new(order, comparer);
+        string? previous = null;
+        foreach (string key in natural) {
+            if (placed.Add(key)) {
+                order.Insert((previous is null) ? 0 : (order.FindIndex(candidate => comparer.Equals(candidate, previous)) + 1), key);
+            }
+            previous = key;
+        }
+        return order;
     }
 
     /// <summary>The folder's own name, which labels its shelf.</summary>
@@ -206,12 +284,20 @@ public static class Library {
         })];
     }
 
-    /// <summary>Orders books shelf by shelf, and within each shelf by the chosen order.</summary>
-    public static IEnumerable<LibraryItem> Sort(IEnumerable<LibraryItem> items, LibrarySort order) {
+    /// <summary>Orders books shelf by shelf (shelves as the reader arranged them), and within each shelf by the chosen order.</summary>
+    public static IEnumerable<LibraryItem> Sort(IReadOnlyCollection<LibraryItem> items, LibrarySort order, IReadOnlyList<string> shelfOrder) {
         StringComparer text = StringComparer.CurrentCultureIgnoreCase;
-        IOrderedEnumerable<LibraryItem> shelves = items.OrderBy(static item => item.ShelfIndex);
+        Dictionary<string, int> rank = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string key in ShelfOrder(items, shelfOrder)) {
+            rank[key] = rank.Count;
+        }
+        IOrderedEnumerable<LibraryItem> shelves = items.OrderBy(item => rank[item.ShelfKey]);
         return order switch {
-            LibrarySort.Title => shelves.ThenBy(static item => item.Title, text),
+            // A folder's shelf is a series: its numbered books come first, in series order. A collection goes by title alone.
+            LibrarySort.Title => shelves
+                .ThenBy(static item => item.IsCollection || (item.SeriesNumber is null))
+                .ThenBy(static item => item.IsCollection ? 0 : (item.SeriesNumber ?? 0))
+                .ThenBy(static item => item.Title, text),
             LibrarySort.Author => shelves
                 .ThenBy(static item => item.Author.Length == 0)
                 .ThenBy(static item => item.Author, text)

@@ -225,6 +225,7 @@
   <data name="Library_Shelf_Recent" xml:space="preserve"><value>Abiertos recientemente</value></data>
   <data name="Library_Summary" xml:space="preserve"><value>{0} libros en {1} estantes</value></data>
   <data name="Library_EmptyFolder" xml:space="preserve"><value>No se han encontrado libros en las carpetas de la biblioteca.</value></data>
+  <data name="Library_ShelfDragTip" xml:space="preserve"><value>Arrastra para reordenar los estantes</value></data>
   <data name="Library_Recent" xml:space="preserve"><value>Añade carpetas a la biblioteca para ver todos tus libros, un estante por carpeta.</value></data>
   <data name="Piper_Intro" xml:space="preserve"><value>Piper es un motor de síntesis de voz neuronal que funciona en este equipo. Se muestran todas las voces de Piper con la licencia que indica su ficha. Muchas están limitadas a uso no comercial o de investigación, o requieren atribución, así que revisa la licencia antes de usar una voz para algo más que tu propia lectura.</value></data>
   <data name="Piper_Step_Card" xml:space="preserve"><value>Obteniendo la ficha de la voz…</value></data>
@@ -300,6 +301,10 @@
   <data name="Details_OwnCover" xml:space="preserve"><value>Usar la del libro</value></data>
   <data name="Details_BookTitle" xml:space="preserve"><value>Título</value></data>
   <data name="Details_Author" xml:space="preserve"><value>Autor</value></data>
+  <data name="Library_SeriesNumber" xml:space="preserve"><value>Libro {0}</value></data>
+  <data name="Details_Series" xml:space="preserve"><value>Número en la serie</value></data>
+  <data name="Details_SeriesHint" xml:space="preserve"><value>Al ordenar por título, el estante de una carpeta muestra primero sus libros numerados, en este orden. Las colecciones siempre se ordenan por título.</value></data>
+  <data name="Details_BadSeries" xml:space="preserve"><value>El número en la serie debe ser un número, como 2 o 2,5, o quedar vacío.</value></data>
   <data name="Details_Hint" xml:space="preserve"><value>OmniRead guarda estos detalles; el archivo del libro no se modifica.</value></data>
   <data name="Details_Reset" xml:space="preserve"><value>Volver a los datos del archivo</value></data>
   <data name="Details_Images" xml:space="preserve"><value>Imágenes</value></data>

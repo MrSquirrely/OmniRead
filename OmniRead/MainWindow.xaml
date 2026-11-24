@@ -27,10 +27,6 @@
         </ContextMenu>
         <l:FormatConverter x:Key="Format" />
         <BooleanToVisibilityConverter x:Key="Visible" />
-        <!-- List rows take the reader's text colour, which follows the eye-comfort palettes as well as light and dark. -->
-        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-        </Style>
         <Style x:Key="IconButton" TargetType="ButtonBase">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="16" />
@@ -279,20 +275,25 @@
                             </ComboBox>
                         </StackPanel>
                         <ListBox x:Name="LibraryList" Grid.Row="2" Margin="-8,10,-8,0" Background="Transparent" BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 PreviewMouseLeftButtonUp="OnLibraryMouseUp" KeyDown="OnLibraryKeyDown">
-                            <!-- One shelf per library folder, labelled with the folder's name. -->
+                                 Foreground="{DynamicResource TextBrush}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
+                                 PreviewMouseLeftButtonUp="OnLibraryMouseUp" KeyDown="OnLibraryKeyDown"
+                                 AllowDrop="True" DragOver="OnShelfDragOver" DragLeave="OnShelfDragLeave" Drop="OnShelfDrop">
+                            <!-- One shelf per folder of books, labelled with the library folder's name and the subfolders under it. -->
                             <ListBox.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.HeaderTemplate>
                                         <DataTemplate>
-                                            <!-- Shelves the reader made carry a tag, and a right-click menu to rename or delete them. -->
+                                            <!-- Shelves the reader made carry a tag, and a right-click menu to rename or delete them.
+                                                 Any shelf can be dragged by its heading to another place among the shelves. -->
                                             <StackPanel Orientation="Horizontal" Margin="8,14,8,2" Background="Transparent"
+                                                        Cursor="SizeAll" ToolTip="{l:Loc Library_ShelfDragTip}"
+                                                        MouseLeftButtonDown="OnShelfMouseDown" MouseMove="OnShelfMouseMove"
                                                         MouseRightButtonUp="OnShelfRightClick">
                                                 <TextBlock Text="&#xE8EC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
                                                              Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"
                                                            Visibility="{Binding Name.IsCollection, Converter={StaticResource Visible}}" />
-                                                <TextBlock Text="{Binding Name.Name}" FontSize="16" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Name.Name}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" />
                                                 <TextBlock Text="{Binding ItemCount}" FontSize="13" Margin="10,0,0,2" VerticalAlignment="Bottom"
                                                            Foreground="{DynamicResource MutedBrush}" />
                                             </StackPanel>

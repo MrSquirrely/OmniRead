@@ -11,7 +11,7 @@ using OmniRead.Services;
 
 namespace OmniRead;
 
-/// <summary>The shelves of books shown when nothing is open: one shelf per library folder.</summary>
+/// <summary>The shelves of books shown when nothing is open: one shelf per folder of books.</summary>
 public partial class MainWindow {
     private List<LibraryItem> _library = [];
     private ListCollectionView? _libraryView;
@@ -44,8 +44,8 @@ public partial class MainWindow {
     }
 
     private void ShowLibrary() {
-        // Grouping keeps the order of the list, so shelves appear in the order the folders were added.
-        ListCollectionView view = new(Library.Sort(_library, _settings.LibrarySort).ToList());
+        // Grouping keeps the order of the list, so shelves appear in the order the sort puts them in.
+        ListCollectionView view = new(Library.Sort(_library, _settings.LibrarySort, _settings.ShelfOrder).ToList());
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LibraryItem.Group)));
         view.Filter = MatchesLibraryFilter;
         _libraryView = view;

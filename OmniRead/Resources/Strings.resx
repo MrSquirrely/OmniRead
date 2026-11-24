@@ -230,6 +230,7 @@
   <data name="Library_Shelf_Recent" xml:space="preserve"><value>Recently opened</value></data>
   <data name="Library_Summary" xml:space="preserve"><value>{0} books on {1} shelves</value></data>
   <data name="Library_EmptyFolder" xml:space="preserve"><value>No books were found in the library folders.</value></data>
+  <data name="Library_ShelfDragTip" xml:space="preserve"><value>Drag to reorder the shelves</value></data>
   <data name="Library_Recent" xml:space="preserve"><value>Add library folders to see all your books, one shelf per folder.</value></data>
   <data name="Piper_Intro" xml:space="preserve"><value>Piper is a neural text-to-speech engine that runs on this computer. Every Piper voice is listed with the licence its model card gives. Many are limited to non-commercial or research use, or require credit, so check the licence before using a voice for more than your own reading.</value></data>
   <data name="Piper_Step_Card" xml:space="preserve"><value>Fetching the voice's model card…</value></data>
@@ -305,6 +306,10 @@ Continue?</value></data>
   <data name="Details_OwnCover" xml:space="preserve"><value>Use the book's own</value></data>
   <data name="Details_BookTitle" xml:space="preserve"><value>Title</value></data>
   <data name="Details_Author" xml:space="preserve"><value>Author</value></data>
+  <data name="Library_SeriesNumber" xml:space="preserve"><value>Book {0}</value></data>
+  <data name="Details_Series" xml:space="preserve"><value>Number in the series</value></data>
+  <data name="Details_SeriesHint" xml:space="preserve"><value>When sorting by title, a folder's shelf lists its numbered books first, in this order. Collections are always listed by title.</value></data>
+  <data name="Details_BadSeries" xml:space="preserve"><value>The number in the series must be a number, such as 2 or 2.5, or left empty.</value></data>
   <data name="Details_Hint" xml:space="preserve"><value>These details are kept by OmniRead; the book file is not changed.</value></data>
   <data name="Details_Reset" xml:space="preserve"><value>Reset to the file's details</value></data>
   <data name="Details_Images" xml:space="preserve"><value>Pictures</value></data>

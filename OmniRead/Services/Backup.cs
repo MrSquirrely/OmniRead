@@ -94,6 +94,15 @@ public static class Backup {
                 }
             }
         }
+        if (settings["ShelfOrder"] is JsonArray shelves) {
+            string folderKey = Library.FolderKey("");
+            for (int i = 0; i < shelves.Count; i++) {
+                // Folder shelves are remembered by their path; collections by their name, which does not move.
+                if ((shelves[i]?.GetValue<string>() is string key) && key.StartsWith(folderKey, StringComparison.Ordinal)) {
+                    shelves[i] = Library.FolderKey(Rebase(key[folderKey.Length..], oldProfile) ?? "");
+                }
+            }
+        }
         if (settings["Overrides"] is JsonObject overrides) {
             JsonObject moved = [];
             foreach ((string path, JsonNode? details) in overrides) {

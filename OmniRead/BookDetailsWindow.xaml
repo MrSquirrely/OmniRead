@@ -40,6 +40,8 @@
             <TextBox x:Name="TitleBox" />
             <TextBlock Text="{l:Loc Details_Author}" Margin="0,14,0,4" />
             <TextBox x:Name="AuthorBox" />
+            <TextBlock Text="{l:Loc Details_Series}" Margin="0,14,0,4" />
+            <TextBox x:Name="SeriesBox" Width="90" HorizontalAlignment="Left" ToolTip="{l:Loc Details_SeriesHint}" />
             <TextBlock x:Name="PathText" Margin="0,14,0,0" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource MutedBrush}" />
             <TextBlock Text="{l:Loc Details_Hint}" Margin="0,10,0,0" FontSize="12" TextWrapping="Wrap"

@@ -31,14 +31,18 @@
             </DockPanel>
         </Border>
 
+        <!-- Scrolls by pixels: scrolling by items would jump a whole language at a time and hide the voices in between. -->
         <ListBox x:Name="VoiceList" Grid.Row="2" Margin="0,14,0,0" Background="Transparent" BorderThickness="0"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                 Foreground="{DynamicResource TextBrush}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
+                 HorizontalContentAlignment="Stretch">
             <!-- One section per language. -->
             <ListBox.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.HeaderTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Margin="4,16,4,6" />
+                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Margin="4,16,4,6"
+                                       Foreground="{DynamicResource TextBrush}" />
                         </DataTemplate>
                     </GroupStyle.HeaderTemplate>
                 </GroupStyle>

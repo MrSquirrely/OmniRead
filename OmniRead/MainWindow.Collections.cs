@@ -74,6 +74,11 @@ public partial class MainWindow {
         MenuItem rename = new() { Header = Localizer.Get("Collection_Rename") };
         rename.Click += (_, _) => {
             if (AskCollectionName(collection.Name) is string name) {
+                // The shelf keeps the place it was dragged to under its new name.
+                int place = _settings.ShelfOrder.FindIndex(key => SameShelf(key, Library.CollectionKey(collection.Name)));
+                if (place >= 0) {
+                    _settings.ShelfOrder[place] = Library.CollectionKey(name);
+                }
                 collection.Name = name;
                 CollectionsChanged();
             }
@@ -84,6 +89,7 @@ public partial class MainWindow {
             if (MessageBox.Show(this, Localizer.Format("Collection_DeleteQuestion", collection.Name), "OmniRead",
                 MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK) {
                 _settings.Collections.Remove(collection);
+                _settings.ShelfOrder.RemoveAll(key => SameShelf(key, Library.CollectionKey(collection.Name)));
                 CollectionsChanged();
             }
         };

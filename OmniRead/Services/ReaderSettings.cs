@@ -76,6 +76,9 @@ public sealed class BookOverride {
 
     /// <summary>File name of a chosen cover in the custom covers folder, or null to keep the book's own.</summary>
     public string? Cover { get; set; }
+
+    /// <summary>The book's place in its series (1, 2, 2.5…), or null when it has none.</summary>
+    public double? SeriesNumber { get; set; }
 }
 
 public sealed class ReaderSettings : INotifyPropertyChanged {
@@ -214,6 +217,10 @@ public sealed class ReaderSettings : INotifyPropertyChanged {
     /// <summary>Shelves the reader has made, each holding books from anywhere.</summary>
     [Browsable(false)]
     public List<BookCollection> Collections { get; set; } = [];
+
+    /// <summary>Keys of the shelves in the order the reader dragged them into; shelves not listed keep their usual place.</summary>
+    [Browsable(false)]
+    public List<string> ShelfOrder { get; set; } = [];
 
     /// <summary>Titles, authors and covers the reader has set by hand, keyed by the book's path.</summary>
     [Browsable(false)]
