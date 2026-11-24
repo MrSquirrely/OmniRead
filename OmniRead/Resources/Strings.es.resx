@@ -45,7 +45,6 @@
 
   <!-- Number formats -->
   <data name="Format_Minutes" xml:space="preserve"><value>{0:0} minutos</value></data>
-  <data name="Status_Page" xml:space="preserve"><value>Página {0} de {1}  ·  {2}</value></data>
   <data name="Status_Opening" xml:space="preserve"><value>Abriendo…</value></data>
 
   <!-- Toolbar and navigation -->
@@ -332,4 +331,8 @@
   <data name="Audiobook_CannotEncode" xml:space="preserve"><value>Windows no ha podido codificar M4A ({0}). Prueba con WAV.</value></data>
   <data name="Settings_Profile" xml:space="preserve"><value>Perfil</value></data>
   <data name="Settings_Theme" xml:space="preserve"><value>Tema</value></data>
+  <data name="Status_PageLabel" xml:space="preserve"><value>Página</value></data>
+  <data name="Status_OfPages" xml:space="preserve"><value>de {0}</value></data>
+  <data name="Tip_GoToPage" xml:space="preserve"><value>Ir a la página: escribe un número y pulsa Intro (Ctrl+G)</value></data>
+  <data name="Settings_Reset" xml:space="preserve"><value>Restablecer el valor predeterminado</value></data>
 </root>

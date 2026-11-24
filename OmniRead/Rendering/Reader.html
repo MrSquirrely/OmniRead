@@ -55,6 +55,10 @@ body.focus #content > .lit { opacity: 1; }
     let layoutTimer = 0;
     let selectionTimer = 0;
     let lit = -1;           // focus mode: index of the block that is not dimmed
+    let pin = null;         // the place the host asked for, reported as it was given until the reader moves
+    let quietUntil = 0;     // scrolling the page itself is not reported as the reader's own before this time
+    let wantedPage = -1;    // a page of the chapter asked for before the chapter had that many
+    let geo = { cw: 0, ch: 0, cols: 1 };  // one column of text and how many a page shows; page numbers are worked out from it
 
     // ---------------------------------------------------------------- text offsets
 
@@ -214,14 +218,20 @@ body.focus #content > .lit { opacity: 1; }
             else {
                 frame.style.cssText = `width:${inner}px;margin:12px auto`;
             }
+            geo = { cw: inner, ch: height - 24, cols: 1 };
             return;
         }
         const gap = Math.round(shown.gap);
-        const columns = (!paged || shown.title || shown.columns === 1) ? 1
+        // The columns the book is read in; a title page is set in one whatever that number is.
+        const usual = (!paged || shown.columns === 1) ? 1
             : (shown.columns === 2) ? 2
             : (width >= shown.measure * 1.5 + gap + 96) ? 2 : 1;
-        const wanted = Math.max(160, Math.min(width - (paged ? 112 : 56), columns * shown.measure + (columns - 1) * gap));
-        const column = Math.floor((wanted - (columns - 1) * gap) / columns);
+        const columns = shown.title ? 1 : usual;
+        const fit = count => {
+            const wanted = Math.max(160, Math.min(width - (paged ? 112 : 56), count * shown.measure + (count - 1) * gap));
+            return Math.floor((wanted - (count - 1) * gap) / count);
+        };
+        const column = fit(columns);
         const inner = column * columns + (columns - 1) * gap;
         const horizontal = Math.max(paged ? 56 : 28, Math.round((width - inner) / 2));
         const vertical = paged ? Math.round(Math.min(72, Math.max(24, height * 0.07))) : 40;
@@ -236,6 +246,8 @@ body.focus #content > .lit { opacity: 1; }
         else {
             frame.style.cssText = `width:${inner}px;margin:${vertical}px auto`;
         }
+        // Page numbers go by the book's usual page, so a title page does not renumber the book.
+        geo = paged ? { cw: fit(usual), ch: height - 2 * vertical, cols: usual } : { cw: inner, ch: height, cols: 1 };
     }
 
     function measure() {
@@ -252,8 +264,9 @@ body.focus #content > .lit { opacity: 1; }
         content.style.transform = `translateX(${-page * step}px)`;
     }
 
-    // The first rectangle of a place in the text.
-    function rectAt(block, offset) {
+    // The first rectangle of a place in the text. Where the character cannot be found, the place is taken from
+    // how far through the block it should be.
+    function rectAt(block, offset, progress) {
         const element = blocks[block];
         if (!element) {
             return null;
@@ -264,13 +277,24 @@ body.focus #content > .lit { opacity: 1; }
             try {
                 range.setStart(node, at);
                 range.setEnd(node, (node.nodeType === 3 && at < node.length) ? at + 1 : at);
-                const found = range.getClientRects()[0];
+                // A character that starts a line can also have an empty rectangle at the end of the line before,
+                // which may be on the page before; the character's own box is the last one.
+                const rects = Array.from(range.getClientRects());
+                const found = rects.findLast(item => item.width > 0) || rects[rects.length - 1];
                 if (found) {
                     return found;
                 }
             }
             catch {
-                // Fall back to the start of the block.
+                // Fall back to a share of the block, or its start.
+            }
+            if (progress > 0) {
+                const pieces = element.getClientRects();
+                if (shown.paged && pieces.length > 1) {
+                    return pieces[Math.min(pieces.length - 1, Math.floor(progress * pieces.length))];
+                }
+                const whole = element.getBoundingClientRect();
+                return { left: whole.left, top: whole.top + whole.height * progress };
             }
         }
         return element.getClientRects()[0] || element.getBoundingClientRect();
@@ -286,7 +310,10 @@ body.focus #content > .lit { opacity: 1; }
 
     // Brings the anchor back on screen after the layout changed.
     function seek() {
-        const rect = (anchor.b !== undefined) ? rectAt(anchor.b, anchor.o) : null;
+        const rect = (anchor.b !== undefined) ? rectAt(anchor.b, anchor.o, anchor.p) : null;
+        pin = rect ? { b: anchor.b, o: anchor.o || 0 } : null;
+        // Moving the page here sets off scroll events; they are not the reader's doing.
+        quietUntil = performance.now() + 200;
         if (shown.paged) {
             setPage(rect ? pageOf(rect) : Math.round((anchor.f || 0) * (pages - 1)));
         }
@@ -314,8 +341,19 @@ body.focus #content > .lit { opacity: 1; }
             const block = +element.dataset.b;
             if (shown.paged) {
                 if (rect.right > area.left + 1) {
-                    return (rect.left >= area.left - 1) ? { b: block, o: 0 }
-                        : { b: block, o: caretOffset(element, area.left + 3, area.top + shown.line / 2) };
+                    if (rect.left >= area.left - 1) {
+                        return { b: block, o: 0 };
+                    }
+                    // The place found must be on this page: a space left hanging at the end of the page before is not.
+                    let offset = caretOffset(element, area.left + 3, area.top + shown.line / 2);
+                    for (let tries = 0; tries < 3; tries++) {
+                        const at = rectAt(block, offset);
+                        if (!at || pageOf(at) >= page) {
+                            break;
+                        }
+                        offset++;
+                    }
+                    return { b: block, o: offset };
                 }
             }
             else if (rect.bottom > 1) {
@@ -374,6 +412,7 @@ body.focus #content > .lit { opacity: 1; }
             return;
         }
         setLit(next);
+        pin = null;
         const rect = blocks[next].getClientRects()[0];
         if (rect && pageOf(rect) !== page) {
             setPage(pageOf(rect));
@@ -395,8 +434,8 @@ body.focus #content > .lit { opacity: 1; }
             fraction = (limit > 0) ? Math.min(1, view.scrollTop / limit) : 0;
             share = fraction;
         }
-        const place = top();
-        post({ t: 'pos', id: shown.id, page, pages, f: fraction, share, b: place.b, o: place.o });
+        const place = pin || top();
+        post({ t: 'pos', id: shown.id, page, pages, f: fraction, share, b: place.b, o: place.o, cw: geo.cw, ch: geo.ch, cols: geo.cols });
     }
 
     function relayout() {
@@ -406,6 +445,13 @@ body.focus #content > .lit { opacity: 1; }
         layout();
         measure();
         seek();
+        if (shown.paged && wantedPage >= 0 && wantedPage < pages) {
+            // The fonts or a picture have come in and the page asked for now exists.
+            setPage(wantedPage);
+            wantedPage = -1;
+            pin = null;
+            anchor = top();
+        }
         report();
     }
 
@@ -457,12 +503,14 @@ body.focus #content > .lit { opacity: 1; }
             view.scrollTop += rect.top - Math.round(view.clientHeight * 0.25);
         }
         anchor = { b: block, o: start };
+        pin = null;
         report();
         return true;
     }
 
     function show(message) {
         shown = message;
+        wantedPage = -1;
         applyVariables(message.vars);
         typography.textContent = message.css;
         document.documentElement.lang = message.lang;
@@ -498,6 +546,34 @@ body.focus #content > .lit { opacity: 1; }
         }
     }
 
+    // Goes to the start of a numbered page: the element the host names, at a character or a share of the way through it.
+    function jump(message) {
+        if (!shown || shown.id !== message.id) {
+            return;
+        }
+        const element = document.getElementById(message.domAnchorId)
+            || content.querySelector(`[data-block-index="${message.blockIndex}"]`);
+        if (!element) {
+            return;
+        }
+        const block = +element.dataset.b;
+        CSS.highlights.delete('found');
+        if (shown.paged && message.pageInChapter >= 0) {
+            // Paged view counts the pages as they are drawn, so the page is turned to by its place in the chapter.
+            setPage(message.pageInChapter);
+            wantedPage = (message.pageInChapter < pages) ? -1 : message.pageInChapter;
+            pin = null;
+            anchor = top();
+            setLit(anchor.b);
+            report();
+            return;
+        }
+        anchor = { b: block, o: message.characterOffset || 0, p: message.relativeBlockProgress || 0 };
+        seek();
+        setLit(block);
+        report();
+    }
+
     function leave(direction) {
         const now = performance.now();
         if (now - lastEdge > 450) {
@@ -511,6 +587,7 @@ body.focus #content > .lit { opacity: 1; }
         if (!shown) {
             return;
         }
+        wantedPage = -1;
         if (shown.paged) {
             if (where === 'next') {
                 if (page >= pages - 1) {
@@ -527,6 +604,7 @@ body.focus #content > .lit { opacity: 1; }
             else {
                 setPage((where === 'first') ? 0 : pages - 1);
             }
+            pin = null;
             anchor = top();
             report();
             return;
@@ -640,14 +718,19 @@ body.focus #content > .lit { opacity: 1; }
 
     view.addEventListener('scroll', () => {
         lastScroll = performance.now();
+        if (lastScroll < quietUntil) {
+            return;
+        }
         if (!scrollFrame) {
-            scrollFrame = requestAnimationFrame(() => {
+            // The place is reported a few times a second while the reader scrolls, not on every frame.
+            scrollFrame = setTimeout(() => {
                 scrollFrame = 0;
                 if (shown && !shown.paged) {
+                    pin = null;
                     anchor = top();
                     report();
                 }
-            });
+            }, 120);
         }
     });
 
@@ -698,6 +781,9 @@ body.focus #content > .lit { opacity: 1; }
                 break;
             case 'go':
                 go(message.where);
+                break;
+            case 'jumpToAnchor':
+                jump(message);
                 break;
             case 'marked':
                 getSelection().removeAllRanges();

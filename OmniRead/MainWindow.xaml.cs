@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -45,6 +47,7 @@ public partial class MainWindow : HandyControl.Controls.Window {
         ThemeManager.Apply(_settings);
         InitializeComponent();
         DataContext = _settings;
+        InitializePages();
         Width = Math.Max(MinWidth, _settings.WindowWidth);
         Height = Math.Max(MinHeight, _settings.WindowHeight);
         if (_settings.WindowMaximized) {
@@ -112,6 +115,7 @@ public partial class MainWindow : HandyControl.Controls.Window {
         }
         LoadingText.Visibility = Visibility.Collapsed;
 
+        ClearPagination();
         _book = book;
         _imageToken++;
         // A title or author corrected in the library is shown here too.
@@ -219,6 +223,7 @@ public partial class MainWindow : HandyControl.Controls.Window {
         BookProgress.Value = overall;
         string percent = Localizer.Format("Format_Percent", overall);
         PageText.Text = DescribePosition(percent);
+        UpdateCurrentPage();
     }
 
     /// <summary>Share of the chapter that has been read once the current page is finished.</summary>
@@ -347,6 +352,9 @@ public partial class MainWindow : HandyControl.Controls.Window {
             case Key.Down when control && _reading:
                 SkipSentence(1);
                 break;
+            case Key.G when control:
+                FocusPageBox();
+                break;
             case Key.K when control:
                 _ = LookUpSelectionAsync();
                 break;
@@ -364,7 +372,7 @@ public partial class MainWindow : HandyControl.Controls.Window {
             return true;
         }
         // Leave the keyboard alone while the reader is working in a side panel.
-        if ((_book is null) || (modifiers is not (ModifierKeys.None or ModifierKeys.Control))
+        if ((_book is null) || (modifiers is not (ModifierKeys.None or ModifierKeys.Control)) || PageBox.IsKeyboardFocusWithin
             || IsFocusWithin(SettingsPanel) || IsFocusWithin(TocPanel) || IsFocusWithin(NotesPanel) || IsFocusWithin(SearchPanel)) {
             return false;
         }
@@ -463,9 +471,19 @@ public partial class MainWindow : HandyControl.Controls.Window {
         ScheduleSave();
     }
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+
     private void ApplyTheme() {
         ThemeManager.Apply(_settings);
         ApplyReaderTheme();
+        // The Mica backdrop is light or dark as the window says it is; it has to agree with the text drawn on it.
+        IntPtr handle = new WindowInteropHelper(this).Handle;
+        if (handle != IntPtr.Zero) {
+            const int UseImmersiveDarkMode = 20;
+            int dark = ThemeManager.Current.IsDark ? 1 : 0;
+            _ = DwmSetWindowAttribute(handle, UseImmersiveDarkMode, ref dark, sizeof(int));
+        }
     }
 
     private void OnSystemThemeChanged() {

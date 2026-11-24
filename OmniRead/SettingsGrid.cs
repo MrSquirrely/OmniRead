@@ -14,9 +14,15 @@ namespace OmniRead;
 
 /// <summary>
 /// The reading settings as a HandyControls property grid. The stock grid sorts headings and properties by name;
-/// this one keeps the order given by <see cref="SettingOrderAttribute"/>.
+/// this one keeps the order given by <see cref="SettingOrderAttribute"/>, and gives every setting a button that
+/// puts it back to the value a new installation starts with.
 /// </summary>
 public sealed class SettingsGrid : PropertyGrid {
+    private const string ResetMark = "reset";
+
+    /// <summary>Untouched settings, for the values the reset buttons restore.</summary>
+    private static readonly ReaderSettings Defaults = new();
+
     public override void OnApplyTemplate() {
         base.OnApplyTemplate();
         Reorder();
@@ -34,11 +40,66 @@ public sealed class SettingsGrid : PropertyGrid {
         }
         foreach (PropertyItem item in view.OfType<PropertyItem>()) {
             item.Tag = SettingsEditors.Attribute<SettingOrderAttribute>(item)?.Order ?? int.MaxValue;
+            AddReset(item);
         }
         using (view.DeferRefresh()) {
             view.SortDescriptions.Clear();
             view.SortDescriptions.Add(new SortDescription(nameof(Tag), ListSortDirection.Ascending));
         }
+    }
+
+    /// <summary>
+    /// Puts a reset button to the right of a setting's editor. The button is faint and does nothing while the
+    /// setting still has its default value.
+    /// </summary>
+    private static void AddReset(PropertyItem item) {
+        if ((item.EditorElement is not FrameworkElement editor) || (editor.Uid == ResetMark) || (item.Value is not ReaderSettings settings)
+            || (typeof(ReaderSettings).GetProperty(item.PropertyName ?? "") is not PropertyInfo property) || !property.CanWrite) {
+            return;
+        }
+        object? standard = property.GetValue(Defaults);
+        bool isFont = property.Name == nameof(ReaderSettings.FontName);
+        System.Windows.Controls.Button reset = new() {
+            Content = "",
+            ToolTip = Localizer.Get("Settings_Reset"),
+            Margin = new Thickness(6, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        reset.SetResourceReference(StyleProperty, "IconButton");
+        reset.Width = 26;
+        reset.Height = 26;
+        reset.FontSize = 12;
+
+        void Show() {
+            bool changed = !Equals(property.GetValue(settings), standard)
+                || (isFont && (settings.FontOrigin != Defaults.FontOrigin));
+            reset.IsEnabled = changed;
+            reset.Opacity = changed ? 1 : 0.25;
+        }
+        reset.Click += (_, _) => {
+            if (isFont) {
+                // A font is known by its name and where it comes from; the list is not bound, so it is set by hand.
+                settings.FontOrigin = Defaults.FontOrigin;
+            }
+            property.SetValue(settings, standard);
+            if (isFont && (editor is Selector list) && (SettingsEditors.Fonts.Count > 0)) {
+                list.SelectedItem = FontLibrary.Find(SettingsEditors.Fonts, settings.FontName, settings.FontOrigin);
+            }
+            Show();
+        };
+        PropertyChangedEventManager.AddHandler(settings, (_, _) => Show(), property.Name);
+        if (isFont) {
+            PropertyChangedEventManager.AddHandler(settings, (_, _) => Show(), nameof(ReaderSettings.FontOrigin));
+        }
+
+        // The editor moves into a panel beside the button; it has to leave the row before it can join the panel.
+        item.EditorElement = null;
+        DockPanel host = new() { Uid = ResetMark };
+        DockPanel.SetDock(reset, Dock.Right);
+        host.Children.Add(reset);
+        host.Children.Add(editor);
+        item.EditorElement = host;
+        Show();
     }
 }
 

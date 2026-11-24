@@ -12,8 +12,8 @@ public sealed record Palette(Color Page, Color Text, Color Accent, bool IsDark, 
 
 /// <summary>
 /// Computes the active palette from the theme or eye-comfort profile and publishes it: as the app's own brushes,
-/// and as the light or dark theme and accent colour of the HandyControls styles. Windows draw their title bars in
-/// their own background, so the title bar follows the palette without further help.
+/// and as the light or dark theme and accent colour of the HandyControls styles. Title bars are drawn in the
+/// colour of their window.
 /// </summary>
 public static class ThemeManager {
     private static readonly UISettings SystemSettings = new();
@@ -35,8 +35,9 @@ public static class ThemeManager {
         resources["PageBrush"] = Brush(palette.Page);
         resources["ChromeBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.07 : 0.05));
         resources["PanelBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.03 : 0.02));
-        // A step further from the page than the rest of the window, so the title bar and its toolbar stand apart.
-        resources["TitleBarBrush"] = Brush(Mix(palette.Page, palette.Text, palette.IsDark ? 0.13 : 0.10));
+        // Title bars are the colour of the window under them. (The main window has no colour of its own: it shows
+        // the Mica backdrop.)
+        resources["TitleBarBrush"] = resources["PanelBrush"];
         resources["TextBrush"] = Brush(palette.Text);
         resources["MutedBrush"] = Brush(Mix(palette.Text, palette.Page, 0.42));
         resources["DividerBrush"] = Brush(Mix(palette.Page, palette.Text, 0.16));

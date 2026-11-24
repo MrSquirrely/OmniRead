@@ -20,7 +20,7 @@
             <SolidColorBrush x:Key="HoverBrush" Color="#E2E2E2" />
             <SolidColorBrush x:Key="CodeBrush" Color="#EDEDED" />
             <SolidColorBrush x:Key="AccentBrush" Color="#005FB8" />
-            <SolidColorBrush x:Key="TitleBarBrush" Color="#E6E6E4" />
+            <SolidColorBrush x:Key="TitleBarBrush" Color="#F8F8F7" />
 
             <!-- Rows of two drop-downs in the settings grid. -->
             <DataTemplate x:Key="FontItemTemplate">

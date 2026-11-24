@@ -34,8 +34,20 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
     /// <summary>Marks where words may break; null when hyphenation is off or there are no patterns for the book's language.</summary>
     private Hyphenator? _hyphenator;
 
+    private int _chapter;
+
+    /// <summary>
+    /// What identifies a block's element: the id page numbers point at, the chapter and block it stands for, and
+    /// the short index the page script works with. The block index is the block's place in the chapter, the same
+    /// one the paginator counts.
+    /// </summary>
+    private string Mark(int block) {
+        return Invariant($"id=\"{BookPaginator.AnchorId(_chapter, block)}\" data-chapter-index=\"{_chapter}\" data-block-index=\"{block}\" data-b=\"{block}\"");
+    }
+
     public ChapterPage Build(Book book, int chapterIndex, int imageToken) {
         Chapter chapter = book.Chapters[chapterIndex];
+        _chapter = chapterIndex;
         bool bookLayout = book.BookLayout;
         _hyphenator = (bookLayout && settings.Justify && settings.Hyphenate)
             ? Hyphenator.For(book.Language ?? CultureInfo.CurrentUICulture.Name)
@@ -50,7 +62,7 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
             switch (chapter.Blocks[i]) {
                 case HeadingBlock heading:
                     string opener = (bookLayout && (i == 0)) ? " op" : "";
-                    html.Append(Invariant($"<div class=\"h h{Math.Clamp(heading.Level, 1, 6)}{opener}\" data-b=\"{i}\">"));
+                    html.Append(Invariant($"<div class=\"h h{Math.Clamp(heading.Level, 1, 6)}{opener}\" {Mark(i)}>"));
                     AppendInlines(html, heading.Inlines);
                     html.Append("</div>");
                     indentNext = false;
@@ -68,12 +80,12 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
                     break;
                 case SceneBreakBlock:
                     html.Append(bookLayout
-                        ? Invariant($"<p class=\"sb\" data-b=\"{i}\"><span data-x>* * *</span></p>")
-                        : Invariant($"<hr data-b=\"{i}\">"));
+                        ? Invariant($"<p class=\"sb\" {Mark(i)}><span data-x>* * *</span></p>")
+                        : Invariant($"<hr {Mark(i)}>"));
                     indentNext = false;
                     break;
                 case ImageBlock image:
-                    html.Append(Invariant($"<div class=\"im{(image.FullPage ? " full" : "")}\" data-b=\"{i}\">"))
+                    html.Append(Invariant($"<div class=\"im{(image.FullPage ? " full" : "")}\" {Mark(i)}>"))
                         .Append(Invariant($"<img src=\"{ImageUrl(imageToken, chapterIndex, i)}\" alt=\"\" draggable=\"false\"></div>"));
                     indentNext = false;
                     break;
@@ -82,7 +94,7 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
                     indentNext = false;
                     break;
                 default:
-                    html.Append(Invariant($"<div data-b=\"{i}\"></div>"));
+                    html.Append(Invariant($"<div {Mark(i)}></div>"));
                     break;
             }
         }
@@ -262,7 +274,7 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
         // Paragraphs that already carry soft hyphens keep their own; mixing the two would upset the offsets.
         bool hyphenate = (_hyphenator is not null) && (block.Kind is ParagraphKind.Normal or ParagraphKind.Quote)
             && !block.Text.Contains(Hyphenator.SoftHyphen);
-        html.Append(Invariant($"<p data-b=\"{index}\""));
+        html.Append(Invariant($"<p {Mark(index)}"));
         if (hyphenate) {
             // Tells the page script that the soft hyphens in this block are not part of its text.
             html.Append(" data-hy");
@@ -282,8 +294,8 @@ public sealed class ChapterHtml(ReaderSettings settings, string fontName, IReadO
         html.Append("</p>");
     }
 
-    private static void AppendTable(StringBuilder html, TableBlock table, int index) {
-        html.Append(Invariant($"<table data-b=\"{index}\">"));
+    private void AppendTable(StringBuilder html, TableBlock table, int index) {
+        html.Append(Invariant($"<table {Mark(index)}>"));
         for (int r = 0; r < table.Rows.Count; r++) {
             html.Append((table.HasHeader && (r == 0)) ? "<tr class=\"hd\">" : "<tr>");
             foreach (IReadOnlyList<InlineRun> cell in table.Rows[r]) {

@@ -5,12 +5,12 @@
         xmlns:l="clr-namespace:OmniRead.Localization"
         xmlns:local="clr-namespace:OmniRead"
         xmlns:hc="https://handyorg.github.io/handycontrol"
-        NonClientAreaBackground="{DynamicResource TitleBarBrush}" NonClientAreaForeground="{DynamicResource TextBrush}"
-        NonClientAreaHeight="46" ShowTitle="False"
+        NonClientAreaBackground="Transparent" NonClientAreaForeground="{DynamicResource TextBrush}"
+        NonClientAreaHeight="46" ShowTitle="False" SystemBackdropType="Mica"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="OmniRead" Icon="Assets/OmniRead.ico"
         Width="1280" Height="860" MinWidth="560" MinHeight="420"
-        Background="{DynamicResource ChromeBrush}"
+        Background="Transparent"
         Foreground="{DynamicResource TextBrush}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
         AllowDrop="True" UseLayoutRounding="True"
@@ -228,7 +228,7 @@
             </Border>
 
             <!-- Page -->
-            <Border Grid.Column="1" Margin="8,0" CornerRadius="8" Background="{DynamicResource PageBrush}"
+            <Border Grid.Column="1" Margin="14,4,14,4" CornerRadius="8" Background="{DynamicResource PageBrush}"
                     BorderThickness="0" ClipToBounds="True">
                 <Grid x:Name="ReaderHost">
                     <Grid.RowDefinitions>
@@ -430,8 +430,21 @@
                        TextTrimming="CharacterEllipsis" Foreground="{DynamicResource MutedBrush}" />
             <ProgressBar Style="{StaticResource ProgressBarFlat}" x:Name="BookProgress" Grid.Column="2" Height="3" Maximum="1" VerticalAlignment="Center"
                          Foreground="{DynamicResource AccentBrush}" />
-            <TextBlock x:Name="PageText" Grid.Column="3" Margin="8,0" VerticalAlignment="Center" FontSize="12"
-                       HorizontalAlignment="Right" Foreground="{DynamicResource MutedBrush}" />
+            <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0">
+                <!-- The page being read; typing a number and pressing Enter goes to that page. -->
+                <StackPanel x:Name="PagePanel" Orientation="Horizontal" VerticalAlignment="Center"
+                            Visibility="{Binding HasPages, Converter={StaticResource Boolean2VisibilityConverter}}">
+                    <TextBlock Text="{l:Loc Status_PageLabel}" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource MutedBrush}" />
+                    <TextBox x:Name="PageBox" Text="{Binding CurrentPage, Mode=OneWay}" MinWidth="44" MinHeight="0" Height="24"
+                             Padding="4,0" Margin="6,0" FontSize="12" TextAlignment="Center" VerticalContentAlignment="Center"
+                             MaxLength="6" ToolTip="{l:Loc Tip_GoToPage}" KeyDown="OnPageBoxKeyDown" LostFocus="OnPageBoxLostFocus" />
+                    <TextBlock Text="{Binding TotalText}" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource MutedBrush}" />
+                    <TextBlock Text="  ·  " VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedBrush}" />
+                </StackPanel>
+                <TextBlock x:Name="PageText" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MutedBrush}" />
+            </StackPanel>
             <Button x:Name="NextChapterButton" Grid.Column="4" Style="{StaticResource IconButton}" Height="28" FontSize="12"
                     Content="&#xE893;" ToolTip="{l:Loc Tip_NextChapter}" Click="OnNextChapterClick" IsEnabled="False" />
         </Grid>

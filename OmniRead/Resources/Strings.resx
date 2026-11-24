@@ -49,7 +49,6 @@
   <data name="Format_Ratio" xml:space="preserve"><value>{0:0.00}</value></data>
   <data name="Format_Em" xml:space="preserve"><value>{0:0} em</value></data>
   <data name="Format_Minutes" xml:space="preserve"><value>{0:0} minutes</value></data>
-  <data name="Status_Page" xml:space="preserve"><value>Page {0} of {1}  ·  {2}</value></data>
   <data name="Status_Opening" xml:space="preserve"><value>Opening…</value></data>
 
   <!-- Toolbar and navigation -->
@@ -194,7 +193,6 @@
   <data name="Format_UnderMinute" xml:space="preserve"><value>under a minute</value></data>
   <data name="Format_ShortMinutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="Format_HoursMinutes" xml:space="preserve"><value>{0} h {1} min</value></data>
-  <data name="Format_Approximate" xml:space="preserve"><value>~{0}</value></data>
 
   <!-- Offline dictionary and Piper -->
   <data name="Lookup_NotFound" xml:space="preserve"><value>No definition was found. The built-in dictionary is English only.</value></data>
@@ -338,4 +336,8 @@ Continue?</value></data>
   <data name="Audiobook_CannotEncode" xml:space="preserve"><value>Windows could not encode M4A ({0}). Try WAV.</value></data>
   <data name="Settings_Profile" xml:space="preserve"><value>Profile</value></data>
   <data name="Settings_Theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="Status_PageLabel" xml:space="preserve"><value>Page</value></data>
+  <data name="Status_OfPages" xml:space="preserve"><value>of {0}</value></data>
+  <data name="Tip_GoToPage" xml:space="preserve"><value>Go to page: type a number and press Enter (Ctrl+G)</value></data>
+  <data name="Settings_Reset" xml:space="preserve"><value>Reset to default</value></data>
 </root>

@@ -12,9 +12,6 @@ public partial class MainWindow {
     private const double LongestCountedPause = 240;
     private const double LargestCountedStep = 12000;
 
-    /// <summary>Page counts of the chapters that have been laid out at the current size and type settings.</summary>
-    private readonly Dictionary<int, int> _pageCounts = [];
-    private string _layoutKey = "";
     private double[] _chapterCharacters = [];
     private double _lastCharacterPosition = -1;
     private int _lastChapter = -1;
@@ -28,20 +25,8 @@ public partial class MainWindow {
             TableBlock table => table.Rows.Sum(static row => row.Sum(static cell => ContentBlock.PlainText(cell).Length)),
             _ => 0
         }))];
-        _pageCounts.Clear();
         _lastCharacterPosition = -1;
         _lastChapter = -1;
-    }
-
-    /// <summary>Forgets measured page counts when something that changes pagination has changed.</summary>
-    private void CheckLayout() {
-        Palette palette = ThemeManager.Current;
-        string key = FormattableString.Invariant(
-            $"{Viewport.Width:0}x{Viewport.Height:0}|{_settings.FontName}|{_settings.FontOrigin}|{_settings.FontSize}|{_settings.LineSpacing}|{_settings.PageWidth}|{_settings.Columns}|{_settings.ViewMode}|{_settings.Justify}|{_settings.Hyphenate}|{_settings.DropCaps}|{palette.FontScale}|{palette.LineBoost}");
-        if (key != _layoutKey) {
-            _layoutKey = key;
-            _pageCounts.Clear();
-        }
     }
 
     /// <summary>Share of the current chapter that lies before what is on screen.</summary>
@@ -49,14 +34,14 @@ public partial class MainWindow {
         return Paged ? PageShare() : _fraction;
     }
 
-    /// <summary>The right-hand status text: page in the whole book, percentage and time left in the chapter.</summary>
+    /// <summary>The right-hand status text: percentage and time left in the chapter. The page number has its own box beside it.</summary>
     private string DescribePosition(string percent) {
         if ((_book is null) || !_shown) {
             return "";
         }
         if (_book.FixedLayout) {
             PageText.ToolTip = TodayLine();
-            return Localizer.Format("Status_Page", _chapterIndex + 1, _book.Chapters.Count, percent);
+            return percent;
         }
         double pace = _settings.Stats.Pace;
         double share = ChapterShare();
@@ -67,22 +52,7 @@ public partial class MainWindow {
             TodayLine(),
             Localizer.Format("Stats_Pace", Math.Round(pace * 60 / CharactersPerWord)));
         string timeLeft = Localizer.Format("Stats_ChapterLeft", Duration(chapterLeft / pace));
-        if (!Paged || (_pages == 0)) {
-            return $"{percent}  ·  {timeLeft}";
-        }
-
-        _pageCounts[_chapterIndex] = _pages;
-        // Chapters not yet laid out are estimated from their length, at the pages-per-character of those that have been.
-        double knownPages = _pageCounts.Values.Sum();
-        double knownCharacters = _pageCounts.Keys.Sum(index => Math.Max(1, _chapterCharacters[index]));
-        double pagesPerCharacter = (knownCharacters > 0) ? knownPages / knownCharacters : 0;
-        int Pages(int chapter) => _pageCounts.TryGetValue(chapter, out int counted) ? counted
-            : Math.Max(1, (int)Math.Round(_chapterCharacters[chapter] * pagesPerCharacter));
-        int before = Enumerable.Range(0, _chapterIndex).Sum(Pages);
-        int total = Enumerable.Range(0, _book.Chapters.Count).Sum(Pages);
-        bool exact = _pageCounts.Count >= _book.Chapters.Count;
-        string totalText = exact ? total.ToString() : Localizer.Format("Format_Approximate", total);
-        return Localizer.Format("Status_Page", before + _page + 1, totalText, percent) + $"  ·  {timeLeft}";
+        return $"{percent}  ·  {timeLeft}";
     }
 
     private string TodayLine() {

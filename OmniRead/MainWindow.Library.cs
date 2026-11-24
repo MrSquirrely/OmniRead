@@ -118,6 +118,7 @@ public partial class MainWindow {
         SettingsStore.Save(_settings);
         _book = null;
         _shown = false;
+        ClearPagination();
         Web.Visibility = Visibility.Collapsed;
         TocList.ItemsSource = null;
         LoadAnnotations();

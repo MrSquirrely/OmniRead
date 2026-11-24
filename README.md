@@ -8,10 +8,12 @@ The window is WPF, with its control styles, window chrome and light and dark the
 [HandyControls](https://github.com/ghost1372/HandyControls); the page itself is drawn by Microsoft Edge WebView2,
 whose runtime is part of Windows 11.
 
-The toolbar sits in the title bar. The cog opens the reading settings: a property grid of everything that can be
+The window is drawn on the Windows 11 Mica backdrop, light or dark to match the page; the title bar, the
+status bar and the space round the page all show it. The toolbar sits in the title bar. The cog opens the reading settings: a property grid of everything that can be
 set, grouped under the same headings as before, with the things that are done rather than set (fonts folder,
 reading history, Piper voices, audiobook export, backup and restore) as buttons beneath it. Selecting a setting
-shows a line of help under the grid where there is one.
+shows a line of help under the grid where there is one. The arrow at the right of each setting puts it back to
+its default; it is faint while the setting still has that value.
 
 ## How a page is drawn
 
@@ -127,9 +129,21 @@ other links inside a book are followed. This works for EPUB, FictionBook, HTML a
 
 ## Page numbers and reading time
 
-Pages are numbered through the whole book. Chapters are laid out one at a time, so the total is exact only once
-every chapter has been shown at the current size and type settings; until then the rest are estimated from their
-length and the total is marked with `~`. The status bar also shows the time left in the chapter, based on your
+Pages are numbered through the whole book, and the status bar shows the page being read out of the total. Type
+a number in the page box and press Enter (or press Ctrl+G first) to go to that page.
+
+The numbers come from a page map made in the background whenever a book is opened or the window, font, size or
+line spacing changes. `BookPaginator` sets every chapter line by line, with the reading font's own character
+widths and the margins the page stylesheet uses, and records where each page begins: the chapter, the block in
+it, and the character when a page starts part-way through a paragraph. Every block on the page carries a matching
+id (`reader-ch-{chapter}-blk-{block}`), so a page start can be shown directly. The map is an estimate of what
+the web view will draw, not a copy of it: pictures are given a nominal height and hyphenation is not modelled. In
+pages view the reader therefore counts the pages actually drawn within the chapter from the chapter's first page
+number, so each turn of the page is one page; in scrolling view a page is one window-height of text and the
+number changes as each page start is passed. Changing the size or the window keeps your place and renumbers
+around it.
+
+The status bar also shows the time left in the chapter, based on your
 own pace once two minutes of reading have been measured (250 words a minute before that). Hover over it for the
 time left in the book, today's reading time and your pace.
 
@@ -187,6 +201,7 @@ that runs on this computer. Reading settings → **Piper voices…** installs it
 | Ctrl+F | Search in book (in the library: search the shelves) |
 | Ctrl+M | Focus mode on / off; ↑ ↓ move the lit paragraph in pages view |
 | Ctrl+K | Look up the selected word |
+| Ctrl+G | Go to page |
 | Ctrl + / − / wheel | Text size |
 | F11 | Full screen |
 
@@ -204,6 +219,12 @@ Appearance and applies after a restart. In XAML use `{l:Loc Some_Key}`; in code 
 writes a single self-contained `release\OmniRead.exe` for 64-bit Windows 11. Fonts, the dictionary and the
 hyphenation patterns are inside it; on first run it unpacks itself to a folder under `%TEMP%\.net`. The WebView2
 runtime is not inside it: Windows 11 already has it.
+
+## Tests
+
+    dotnet test OmniRead.Tests
+
+runs the unit tests of the page map.
 
 ## Licence
 

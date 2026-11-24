@@ -125,7 +125,6 @@ public partial class MainWindow {
             // Leaving the chapter by hand ends the reading; the narrator's own chapter turns do not.
             StopReading();
         }
-        CheckLayout();
         _chapterIndex = Math.Clamp(index, 0, _book.Chapters.Count - 1);
         _activeMode = _settings.ViewMode;
         if (_font is null) {
@@ -248,7 +247,10 @@ public partial class MainWindow {
                 _share = message.GetProperty("share").GetDouble();
                 _topBlock = message.GetProperty("b").GetInt32();
                 _topOffset = message.GetProperty("o").GetInt32();
+                SetPageGeometry(message.GetProperty("cw").GetDouble(), message.GetProperty("ch").GetDouble(), message.GetProperty("cols").GetInt32());
                 OnPositionChanged();
+                _jumpDone?.TrySetResult();
+                _jumpDone = null;
                 break;
             case "sel":
                 string text = message.GetProperty("text").GetString() ?? "";
